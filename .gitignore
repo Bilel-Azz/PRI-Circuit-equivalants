@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.env
+
+# Outputs (modèles et datasets - trop gros pour git)
+outputs/
+*.pt
+*.pth
+checkpoints/
+
+# Node
+node_modules/
+.next/
+out/
+build/
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Images générées
+*.png
+*.jpg
+*.jpeg
+
+# Logs
+*.log
+logs/
+
+# Temp
+tmp/
+temp/
