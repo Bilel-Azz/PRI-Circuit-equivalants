@@ -62,7 +62,7 @@ export default function TitleSlide() {
 
       {/* Subtitle */}
       <motion.p variants={fadeUp} className="text-xl mt-6 font-light tracking-wide z-10" style={{ color: colors.grayLight }}>
-        Courbe d{"'"}impédance Z(f) → Topologie de circuit RLC
+        {"Courbe d'imp\u00e9dance Z(f) \u2192 Circuit RLC \u00e9quivalent"}
       </motion.p>
 
       {/* Separator */}
@@ -87,7 +87,7 @@ export default function TitleSlide() {
       <motion.div variants={fadeUp} className="absolute bottom-12 flex flex-col items-center z-10">
         <div className="text-sm font-medium" style={{ color: colors.white }}>Bilel AAZZOUZ</div>
         <div className="text-xs mt-1" style={{ color: colors.grayLight }}>
-          Encadrants : Frédéric Rayar & Yannick Kergossien
+          {"Encadrants : Fr\u00e9d\u00e9ric Rayar, Yannick Kergossien & Isma\u00efl Aouichak"}
         </div>
       </motion.div>
     </motion.div>
