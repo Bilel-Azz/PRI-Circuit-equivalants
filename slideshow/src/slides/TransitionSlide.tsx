@@ -9,13 +9,13 @@ const allSections = [
     num: "01",
     title: "Contexte & Probl\u00e9matique",
     color: colors.blue,
-    items: ["Contexte du projet", "Le probl\u00e8me inverse", "Pourquoi c\u2019est difficile", "Cahier des charges"],
+    items: ["Circuits RLC", "L'impédance Z(f)", "Le problème inverse", "Pourquoi c'est difficile", "Cahier des charges"],
   },
   {
     num: "02",
     title: "Gestion de Projet",
     color: colors.cyan,
-    items: ["M\u00e9thodologie Cycle en V", "Planning r\u00e9el", "Analyse des risques", "Indicateurs SPER"],
+    items: ["Méthodologie", "Planning réel", "Analyse des risques", "Indicateurs SPER"],
   },
   {
     num: "03",

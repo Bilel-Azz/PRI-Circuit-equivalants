@@ -149,9 +149,9 @@ export default function DefiSlide() {
       {/* 3 challenges */}
       <motion.div className="flex gap-4" variants={staggerFast}>
         {[
-          { num: "28", label: "ordres de grandeur", desc: "R: 1\u03A9 \u2192 1M\u03A9, L: 1\u00B5H \u2192 100mH, C: 1pF \u2192 100\u00B5F", color: colors.blue },
-          { num: "3", label: "pr\u00e9dictions simultan\u00e9es", desc: "Type (R/L/C) + Valeur + Connexions (n\u0153uds)", color: colors.green },
-          { num: "1\u201310", label: "composants possibles", desc: "Taille variable, topologie inconnue", color: colors.purple },
+          { num: "28", label: "ordres de grandeur", desc: "Les valeurs vont de 0.000001 à 1 000 000", color: colors.blue },
+          { num: "3", label: "prédictions simultanées", desc: "Type + Valeur + Connexions pour chaque composant", color: colors.green },
+          { num: "1–10", label: "composants possibles", desc: "On ne sait pas combien il y en a à l'avance", color: colors.purple },
         ].map((c) => (
           <motion.div key={c.label} variants={fadeUp}
             className="flex flex-col items-center p-4 rounded-xl border flex-1"

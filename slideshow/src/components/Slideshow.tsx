@@ -11,7 +11,8 @@ import { jsPDF } from "jspdf";
 // --- Slides ---
 import TitleSlide from "@/slides/01_TitleSlide";
 import SommaireSlide from "@/slides/02_SommaireSlide";
-import ContexteSlide from "@/slides/03_ContexteSlide";
+import CircuitsRLCSlide from "@/slides/03_ContexteSlide";
+import ImpedanceSlide from "@/slides/03b_ImpedanceSlide";
 import ProblematiqueSlide from "@/slides/04_ProblematiqueSlide";
 import DefiSlide from "@/slides/04b_DefiSlide";
 import CahierDesChargesSlide from "@/slides/05_CahierDesChargesSlide";
@@ -46,7 +47,8 @@ const slides = [
   SommaireSlide,
   // --- Section 01 : Contexte ---
   Transition01,
-  ContexteSlide,
+  CircuitsRLCSlide,
+  ImpedanceSlide,
   ProblematiqueSlide,
   DefiSlide,
   CahierDesChargesSlide,
@@ -87,9 +89,10 @@ const slideLabels = [
   "Sommaire",
   // 01
   "Contexte & Probl.",
-  "Contexte",
-  "Probl\u00e9matique",
-  "Le d\u00e9fi",
+  "Circuits RLC",
+  "Impédance Z(f)",
+  "Problème inverse",
+  "Le défi",
   "Cahier des charges",
   // 02
   "Gestion de projet",
@@ -126,10 +129,10 @@ const slideLabels = [
 // Section boundaries for color-coding dots
 const sectionColors = [
   { start: 0, end: 1, color: colors.blue },       // Intro
-  { start: 2, end: 6, color: colors.blue },        // Transition01 + Contexte
-  { start: 7, end: 11, color: colors.cyan },       // Transition02 + Gestion
-  { start: 12, end: 28, color: colors.green },     // Transition03 + R\u00e9alisation
-  { start: 29, end: 34, color: colors.purple },    // Transition04 + Bilan
+  { start: 2, end: 7, color: colors.blue },        // Transition01 + Contexte (+1 slide)
+  { start: 8, end: 12, color: colors.cyan },       // Transition02 + Gestion
+  { start: 13, end: 29, color: colors.green },     // Transition03 + Réalisation
+  { start: 30, end: 35, color: colors.purple },    // Transition04 + Bilan
 ];
 
 function getDotColor(index: number, isCurrent: boolean): string {
