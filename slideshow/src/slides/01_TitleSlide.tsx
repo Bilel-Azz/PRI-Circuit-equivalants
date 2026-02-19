@@ -87,7 +87,7 @@ export default function TitleSlide() {
       <motion.div variants={fadeUp} className="absolute bottom-12 flex flex-col items-center z-10">
         <div className="text-sm font-medium" style={{ color: colors.white }}>Bilel AAZZOUZ</div>
         <div className="text-xs mt-1" style={{ color: colors.grayLight }}>
-          Encadrants : Fr\u00e9d\u00e9ric Rayar & Yannick Kergossien
+          Encadrants : Frédéric Rayar & Yannick Kergossien
         </div>
       </motion.div>
     </motion.div>

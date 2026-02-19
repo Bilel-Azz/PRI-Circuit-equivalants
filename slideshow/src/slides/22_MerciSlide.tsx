@@ -43,7 +43,7 @@ export default function MerciSlide() {
         <div className="text-base font-medium" style={{ color: colors.white }}>Bilel AAZZOUZ</div>
         <div className="text-sm" style={{ color: colors.grayLight }}>PRI 5A — Polytech Tours — 2025-2026</div>
         <div className="text-xs mt-1" style={{ color: colors.grayLight }}>
-          Encadrants : Fr\u00e9d\u00e9ric Rayar & Yannick Kergossien
+          Encadrants : Frédéric Rayar & Yannick Kergossien
         </div>
       </motion.div>
 
