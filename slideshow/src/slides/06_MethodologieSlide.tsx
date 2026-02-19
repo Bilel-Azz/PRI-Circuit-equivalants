@@ -4,16 +4,42 @@ import { motion } from "framer-motion";
 import { fadeUp, staggerContainer } from "@/lib/animations";
 import { colors } from "@/lib/theme";
 
-const leftPhases = [
-  { label: "Spécifications", y: 60 },
-  { label: "Conception", y: 120 },
-  { label: "Réalisation", y: 180 },
-];
-
-const rightPhases = [
-  { label: "Validation", y: 60 },
-  { label: "Intégration", y: 120 },
-  { label: "Tests unitaires", y: 180 },
+const phases = [
+  {
+    num: "1",
+    label: "Exploration",
+    desc: "Recherche biblio, choix d'architecture (CNN vs MLP, Transformer vs RNN), premiers prototypes",
+    color: colors.blue,
+    weeks: "S1-S4",
+  },
+  {
+    num: "2",
+    label: "Premier modèle fonctionnel",
+    desc: "Dataset V1-V3, modèle V1-V4, validation sur circuits simples, identification des self-loops",
+    color: colors.cyan,
+    weeks: "S5-S8",
+  },
+  {
+    num: "3",
+    label: "Itérations & expérimentations",
+    desc: "12 versions testées (V5-V12), REINFORCE, 6 canaux, classificateur — la plupart ont échoué",
+    color: colors.orange,
+    weeks: "S9-S14",
+  },
+  {
+    num: "4",
+    label: "Diagnostic & analyse",
+    desc: "Découverte du biais dataset (<15% de vraies doubles résonances), dataset V5 vérifié",
+    color: colors.red,
+    weeks: "S15-S16",
+  },
+  {
+    num: "5",
+    label: "Intégration & déploiement",
+    desc: "Application web (FastAPI + Next.js), inférence Best-of-50, déploiement OVH + Vercel",
+    color: colors.green,
+    weeks: "S17-S20",
+  },
 ];
 
 export default function MethodologieSlide() {
@@ -30,81 +56,71 @@ export default function MethodologieSlide() {
         </span>
       </motion.div>
 
-      <motion.h2 variants={fadeUp} className="text-4xl font-bold mb-3" style={{ color: colors.white }}>
-        Cycle en V
+      <motion.h2 variants={fadeUp} className="text-4xl font-bold mb-2" style={{ color: colors.white }}>
+        Démarche exploratoire & itérative
       </motion.h2>
       <motion.p variants={fadeUp} className="text-sm mb-8" style={{ color: colors.grayLight }}>
-        Adapté au projet individuel avec cahier des charges fixe
+        Recherche par expérimentation : tester, mesurer, pivoter
       </motion.p>
 
-      {/* V-Cycle SVG */}
-      <motion.div variants={fadeUp} className="relative" style={{ width: 700, height: 280 }}>
-        <svg width="700" height="280" viewBox="0 0 700 280">
-          {/* V shape lines */}
-          <motion.line x1="80" y1="30" x2="350" y2="250" stroke={colors.blue} strokeWidth="2" strokeDasharray="6"
-            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.5, duration: 1 }} />
-          <motion.line x1="350" y1="250" x2="620" y2="30" stroke={colors.green} strokeWidth="2" strokeDasharray="6"
-            initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 1.2, duration: 1 }} />
+      {/* Timeline */}
+      <div className="relative flex flex-col gap-3">
+        {/* Vertical line */}
+        <motion.div
+          className="absolute left-[22px] top-2 bottom-2 w-[2px]"
+          style={{ background: `${colors.border}` }}
+          initial={{ scaleY: 0 }}
+          animate={{ scaleY: 1 }}
+          transition={{ delay: 0.3, duration: 0.8 }}
+        />
 
-          {/* Horizontal traceability arrows */}
-          {[0, 1, 2].map((i) => (
-            <motion.line key={i}
-              x1={160 + i * 60} y1={60 + i * 60}
-              x2={540 - i * 60} y2={60 + i * 60}
-              stroke={colors.grayDark} strokeWidth="1" strokeDasharray="4"
-              initial={{ pathLength: 0 }} animate={{ pathLength: 1 }}
-              transition={{ delay: 2 + i * 0.2, duration: 0.5 }}
-            />
-          ))}
+        {phases.map((phase, i) => (
+          <motion.div
+            key={phase.num}
+            className="flex items-start gap-4 relative"
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 + i * 0.2, type: "spring", stiffness: 120 }}
+          >
+            {/* Circle */}
+            <div
+              className="w-[44px] h-[44px] rounded-full flex items-center justify-center text-sm font-bold shrink-0 z-10"
+              style={{ background: `${phase.color}20`, color: phase.color, border: `2px solid ${phase.color}` }}
+            >
+              {phase.num}
+            </div>
 
-          {/* Left side nodes (descending) */}
-          {leftPhases.map((phase, i) => (
-            <motion.g key={phase.label}
-              initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.6 + i * 0.25, type: "spring" }}>
-              <rect x={30 + i * 50} y={phase.y - 14} width={120} height={28} rx="6"
-                fill={`${colors.blue}15`} stroke={colors.blue} strokeWidth="1" />
-              <text x={90 + i * 50} y={phase.y + 4} textAnchor="middle"
-                fill={colors.blue} fontSize="11" fontFamily="system-ui">{phase.label}</text>
-            </motion.g>
-          ))}
-
-          {/* Bottom node */}
-          <motion.g initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 1.5, type: "spring" }}>
-            <rect x={290} y={236} width={120} height={28} rx="6"
-              fill={`${colors.purple}20`} stroke={colors.purple} strokeWidth="1.5" />
-            <text x={350} y={254} textAnchor="middle"
-              fill={colors.purple} fontSize="11" fontWeight="bold" fontFamily="system-ui">{"Réalisation"}</text>
-          </motion.g>
-
-          {/* Right side nodes (ascending) */}
-          {rightPhases.map((phase, i) => (
-            <motion.g key={phase.label}
-              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 1.4 + i * 0.25, type: "spring" }}>
-              <rect x={550 - i * 50} y={phase.y - 14} width={120} height={28} rx="6"
-                fill={`${colors.green}15`} stroke={colors.green} strokeWidth="1" />
-              <text x={610 - i * 50} y={phase.y + 4} textAnchor="middle"
-                fill={colors.green} fontSize="11" fontFamily="system-ui">{phase.label}</text>
-            </motion.g>
-          ))}
-        </svg>
-      </motion.div>
-
-      {/* Justification */}
-      <motion.div className="flex gap-4 mt-6" variants={staggerContainer}>
-        {[
-          { reason: "Projet individuel", detail: "Scrum = équipe 3-9 pers." },
-          { reason: "CdC fixe", detail: "Pas d'itérations client" },
-          { reason: "Traçabilité", detail: "Spécif ↔ Tests" },
-        ].map((r) => (
-          <motion.div key={r.reason} variants={fadeUp}
-            className="px-4 py-2 rounded-lg border text-center"
-            style={{ borderColor: colors.border }}>
-            <div className="text-xs font-semibold" style={{ color: colors.white }}>{r.reason}</div>
-            <div className="text-[10px] mt-0.5" style={{ color: colors.gray }}>{r.detail}</div>
+            {/* Content */}
+            <div className="flex-1 rounded-xl px-4 py-3 border" style={{ borderColor: `${phase.color}30`, background: `${phase.color}08` }}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-bold" style={{ color: phase.color }}>{phase.label}</span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full" style={{ background: `${colors.bg}`, color: colors.gray }}>
+                  {phase.weeks}
+                </span>
+              </div>
+              <div className="text-xs mt-1" style={{ color: colors.grayLight }}>{phase.desc}</div>
+            </div>
           </motion.div>
+        ))}
+      </div>
+
+      {/* Bottom insight */}
+      <motion.div
+        className="mt-6 flex gap-4 justify-center"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.8 }}
+      >
+        {[
+          { label: "12 versions testées", detail: "Seule V5 retenue", icon: "🔬" },
+          { label: "Pivot majeur", detail: "Problème = dataset, pas modèle", icon: "🔄" },
+          { label: "Projet individuel", detail: "Autonomie totale sur les choix", icon: "👤" },
+        ].map((item) => (
+          <div key={item.label} className="px-4 py-2 rounded-lg border text-center" style={{ borderColor: colors.border }}>
+            <div className="text-lg">{item.icon}</div>
+            <div className="text-xs font-semibold" style={{ color: colors.white }}>{item.label}</div>
+            <div className="text-[10px] mt-0.5" style={{ color: colors.gray }}>{item.detail}</div>
+          </div>
         ))}
       </motion.div>
     </motion.div>

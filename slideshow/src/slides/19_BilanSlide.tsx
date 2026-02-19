@@ -17,7 +17,7 @@ const competences = [
   { skill: "Deep Learning", detail: "PyTorch, architectures, loss design", color: colors.blue },
   { skill: "Data Engineering", detail: "Génération synthétique, distribution", color: colors.cyan },
   { skill: "Full-Stack", detail: "FastAPI + Next.js + déploiement", color: colors.green },
-  { skill: "Gestion de projet", detail: "Cycle en V, SPER, risques", color: colors.purple },
+  { skill: "Gestion de projet", detail: "Démarche exploratoire, SPER, risques", color: colors.purple },
   { skill: "Résilience", detail: "Reprise après pause, itération rapide", color: colors.orange },
 ];
 
