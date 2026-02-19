@@ -48,21 +48,21 @@ export default function TitleSlide() {
 
       {/* Main title */}
       <motion.div variants={fadeUp} className="text-center z-10">
-        <motion.h1 className="text-7xl font-bold tracking-tight mb-2" style={{ color: colors.white }}>
-          Circuit Synthesis
+        <motion.h1 className="text-5xl font-bold tracking-tight mb-2" style={{ color: colors.white }}>
+          Synthèse de circuits
         </motion.h1>
         <motion.h1
-          className="text-7xl font-bold tracking-tight text-glow-blue"
+          className="text-5xl font-bold tracking-tight text-glow-blue"
           style={{ color: colors.blue }}
           variants={fadeUp}
         >
-          AI
+          équivalents par IA
         </motion.h1>
       </motion.div>
 
       {/* Subtitle */}
       <motion.p variants={fadeUp} className="text-xl mt-6 font-light tracking-wide z-10" style={{ color: colors.grayLight }}>
-        Impédance Z(f) → Topologie de circuit
+        Courbe d{"'"}impédance Z(f) → Topologie de circuit RLC
       </motion.p>
 
       {/* Separator */}
