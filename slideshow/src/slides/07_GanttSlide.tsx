@@ -8,11 +8,12 @@ import { colors } from "@/lib/theme";
 const phases = [
   { label: "Spécifications", start: 0, end: 14, color: colors.blue, row: 0 },
   { label: "Problèmes perso", start: 14, end: 39, color: colors.resistor, row: 1, isGap: true },
-  { label: "Pivot supervisé", start: 39, end: 45, color: colors.purple, row: 2 },
-  { label: "Modèle V1→V5", start: 42, end: 54, color: colors.green, row: 3 },
-  { label: "GPU + Datasets", start: 48, end: 58, color: colors.orange, row: 4 },
-  { label: "Backend + Frontend", start: 52, end: 63, color: colors.yellow, row: 5 },
-  { label: "Tests + Déploiement", start: 60, end: 70, color: colors.green, row: 6 },
+  { label: "Création du dataset", start: 39, end: 52, color: colors.cyan, row: 2 },
+  { label: "Représentation circuit", start: 39, end: 48, color: colors.purple, row: 3 },
+  { label: "Entraînement modèle", start: 44, end: 60, color: colors.green, row: 4 },
+  { label: "Backend + Frontend", start: 50, end: 65, color: colors.yellow, row: 5 },
+  { label: "Tests & validation", start: 39, end: 68, color: colors.orange, row: 6 },
+  { label: "Documents + soutenance", start: 60, end: 70, color: colors.blue, row: 7 },
 ];
 
 const months = ["Oct", "Nov", "Déc", "Jan", "Fév"];

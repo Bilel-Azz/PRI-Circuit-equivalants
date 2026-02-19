@@ -13,22 +13,16 @@ const pipeline = [
 
 const problems = [
   {
-    icon: "⚡",
-    title: "Nœuds isolés",
-    desc: "Des composants connectés à rien → circuits invalides (42% self-loops, 9% validité)",
-    color: colors.resistor,
-  },
-  {
-    icon: "📉",
-    title: "80% de courbes monotones",
-    desc: "Majorité de R ou RC simples, très peu de résonances ou de courbes complexes",
+    icon: "🎲",
+    title: "Distribution non contrôlée",
+    desc: "Impossible de garantir la diversité des courbes — 80% de courbes monotones, très peu de résonances",
     color: colors.orange,
   },
   {
-    icon: "🎲",
-    title: "Distribution non contrôlée",
-    desc: "Impossible de garantir la diversité — le modèle ne voit que des cas simples",
-    color: colors.yellow,
+    icon: "⚡",
+    title: "Beaucoup de circuits invalides",
+    desc: "Composants connectés au même nœud (self-loops), nœuds isolés — seulement 9% de circuits valides",
+    color: colors.resistor,
   },
 ];
 

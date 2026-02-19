@@ -105,9 +105,9 @@ export default function SperSlide() {
         <motion.div variants={fadeUp}
           className="p-4 rounded-xl border" style={{ borderColor: colors.border, background: `${colors.bgCard}cc` }}>
           <AnimatedChart
-            data={[0, -5, -80, -10, 0]}
+            data={[0, 15, 80, 50, 0]}
             color={colors.orange}
-            label="Écart de charge (h)"
+            label="Retard accumulé (h)"
             delay={1.2}
             maxY={100}
           />

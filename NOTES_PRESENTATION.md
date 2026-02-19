@@ -312,17 +312,21 @@
 
 **Mots-clés** : encoder CNN, latent 256, Transformer 6 couches, autorégressif
 
-- **Entrée** : (2, 100) — la courbe d'impédance normalisée
-- **Encoder CNN** :
-  - Conv1d : 2→64→128→256 avec BatchNorm, ReLU, MaxPool
-  - MLP : 3072→512→256 (espace latent compressé)
-- **Espace latent** : vecteur de 256 dimensions — "l'essence du circuit"
-- **Decoder Transformer** :
-  - 6 couches, 8 têtes d'attention, d_model=512
-  - Génère **autoregressivement** les 6 tokens de sortie
-  - **Contrainte clé** : node_b ≠ node_a (masking) → 0% de self-loops
-- **27.7M paramètres**, ~2s d'inférence
-- "Le decoder génère les composants un par un, comme une phrase mot par mot"
+### Script pour expliquer aux novices :
+
+"Le modèle a deux parties principales, comme un cerveau qui a deux zones.
+
+**L'Encoder (à gauche)** — c'est un réseau convolutif, le même type que ceux qui reconnaissent des images. Sauf qu'ici, au lieu d'analyser une photo, il analyse la courbe d'impédance. Il prend les 100 points de mesure (module + phase = 200 nombres) et les compresse progressivement : d'abord il extrait 64 caractéristiques, puis 128, puis 256. À la fin, toute l'info de la courbe est résumée dans un vecteur de 256 nombres. C'est comme résumer un livre en un paragraphe.
+
+**Le Decoder (à droite)** — c'est un Transformer, le même type d'architecture que ChatGPT. Il prend le résumé de 256 nombres et génère le circuit composant par composant. Pour chaque composant il prédit 4 choses : le type (R, L ou C), les 2 nœuds de connexion, et la valeur. Il fait ça 6 fois de suite, comme écrire une phrase mot par mot.
+
+**Les 6 couches du Transformer** : c'est comme 6 filtres successifs qui affinent la prédiction. Le signal passe par 6 étapes de traitement, chacune un peu plus précise que la précédente.
+
+**Les 8 têtes d'attention** : à chaque couche, le modèle regarde les données sous 8 angles différents en parallèle. Une tête peut se concentrer sur les types de composants, une autre sur les connexions, une autre sur les valeurs. Puis les 8 résultats sont combinés. C'est comme avoir 8 experts qui travaillent en parallèle.
+
+**La contrainte node_b ≠ node_a** : quand le modèle prédit le 2ème nœud de connexion, on masque le 1er nœud pour qu'il ne puisse pas le choisir. Sinon le composant serait connecté à lui-même, ce qui n'a aucun sens en électronique."
+
+- **Chiffres** : 27.7M paramètres, ~2s d'inférence pour 50 candidats
 
 ---
 

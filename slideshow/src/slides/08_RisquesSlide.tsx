@@ -5,11 +5,11 @@ import { fadeUp, staggerContainer, staggerFast } from "@/lib/animations";
 import { colors } from "@/lib/theme";
 
 const risks = [
-  { id: "R1", label: "Instabilité numérique solver", data: [8, 8, 5, 2, 1], color: colors.cyan },
-  { id: "R2", label: "Complexité représentation", data: [7, 9, 6, 3, 2], color: colors.blue },
-  { id: "R3", label: "Communication encadrants", data: [3, 8, 9, 4, 2], color: colors.resistor },
-  { id: "R4", label: "Overfitting modèle", data: [2, 3, 5, 7, 3], color: colors.orange },
-  { id: "R5", label: "Circuits invalides générés", data: [6, 7, 5, 3, 1], color: colors.purple },
+  { id: "R1", label: "Qualité des données générées", data: [3, 3, 7, 8, 5], color: colors.cyan },
+  { id: "R2", label: "Communication encadrants", data: [5, 9, 9, 6, 4], color: colors.resistor },
+  { id: "R3", label: "Overfitting du modèle", data: [2, 2, 4, 8, 4], color: colors.orange },
+  { id: "R4", label: "Représentation des circuits", data: [8, 8, 6, 2, 1], color: colors.blue },
+  { id: "R5", label: "Délai après pause", data: [1, 9, 9, 5, 2], color: colors.purple },
 ];
 
 const months = ["Oct", "Nov", "Déc", "Jan", "Fév"];

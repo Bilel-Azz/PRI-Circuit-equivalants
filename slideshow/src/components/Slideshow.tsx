@@ -72,8 +72,8 @@ const slides = [
   ExplorationsSlide,        // ⑦ Approches explorées (déplacé)
   ArchitectureModelSlide,   // ⑧ Architecture modèle
   DiagrammeClasseSlide,     // ⑨ Diagramme classes + légende
-  DatasetsSlide,            // ⑩ Datasets
-  EvolutionModeleSlide,     // ⑪ Évolution V1→V5
+  EvolutionModeleSlide,     // ⑩ Évolution V1→V5
+  DatasetsSlide,            // ⑪ Datasets (après modèles)
   ResultatsSlide,           // ⑫ Résultats
   ExperimentationsSlide,    // ⑬ Expérimentations post-V5
   OptimisationsSlide,       // ⑭ Optimisations
@@ -116,8 +116,8 @@ const slideLabels = [
   "Approches explorées",
   "Architecture IA",
   "Diagramme classes",
-  "Datasets",
   "Évolution V1→V5",
+  "Datasets",
   "Résultats",
   "Expérimentations",
   "Optimisations",

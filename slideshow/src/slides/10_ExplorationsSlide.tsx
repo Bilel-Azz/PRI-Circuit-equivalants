@@ -1,63 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { fadeUp, staggerContainer, staggerSlow } from "@/lib/animations";
+import { fadeUp, staggerContainer } from "@/lib/animations";
 import { colors } from "@/lib/theme";
-
-const approaches = [
-  {
-    title: "Solver différentiable",
-    desc: "Backpropagation à travers le solveur MNA",
-    why: "Instabilité numérique : admittances sur 28 ordres de grandeur",
-    result: "238% d'erreur — mode collapse",
-    color: colors.cyan,
-    icon: (
-      <svg width="50" height="50" viewBox="0 0 50 50">
-        <motion.path d="M5,40 Q15,10 25,25 T45,5" fill="none" stroke={colors.cyan} strokeWidth="2"
-          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 0.8, duration: 0.8 }} />
-        <motion.text x="25" y="48" textAnchor="middle" fill={colors.resistor} fontSize="16" fontWeight="bold"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }}>{"×"}</motion.text>
-      </svg>
-    ),
-  },
-  {
-    title: "REINFORCE (RL)",
-    desc: "Policy gradient sans supervision",
-    why: "Pas de signal d'apprentissage : reward ≈ 0 au départ",
-    result: 'Mode collapse → toujours "capacitor only"',
-    color: colors.purple,
-    icon: (
-      <svg width="50" height="50" viewBox="0 0 50 50">
-        <motion.circle cx="25" cy="25" r="18" fill="none" stroke={colors.purple} strokeWidth="2"
-          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 1, duration: 0.8 }} />
-        <motion.path d="M18,18 L32,32 M32,18 L18,32" stroke={colors.resistor} strokeWidth="2.5"
-          initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ delay: 1.8, duration: 0.4 }} />
-      </svg>
-    ),
-  },
-  {
-    title: "Matrice 8×8",
-    desc: "Prédiction de graphe sous forme matricielle",
-    why: "90% de positions vides → modèle prédit \"rien\" partout",
-    result: "48% accuracy seulement",
-    color: colors.orange,
-    icon: (
-      <svg width="50" height="50" viewBox="0 0 50 50">
-        {[0, 1, 2].map((r) =>
-          [0, 1, 2].map((c) => (
-            <motion.rect key={`${r}${c}`} x={8 + c * 14} y={8 + r * 14} width="10" height="10" rx="2"
-              fill={r === c ? `${colors.orange}40` : `${colors.grayDark}40`}
-              stroke={r === c ? colors.orange : colors.grayDark} strokeWidth="0.5"
-              initial={{ scale: 0 }} animate={{ scale: 1 }}
-              transition={{ delay: 1.2 + (r * 3 + c) * 0.05, type: "spring" }} />
-          ))
-        )}
-        <motion.text x="25" y="48" textAnchor="middle" fill={colors.resistor} fontSize="16" fontWeight="bold"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2 }}>{"×"}</motion.text>
-      </svg>
-    ),
-  },
-];
 
 export default function ExplorationsSlide() {
   return (
@@ -74,61 +19,130 @@ export default function ExplorationsSlide() {
       </motion.div>
 
       <motion.h2 variants={fadeUp} className="text-4xl font-bold mb-2" style={{ color: colors.white }}>
-        Approches explorées
+        Première approche : matrice 8x8
       </motion.h2>
       <motion.p variants={fadeUp} className="text-sm mb-10" style={{ color: colors.grayLight }}>
-        3 approches testées et abandonnées — chaque échec a guidé la suite
+        Représenter le circuit comme un graphe sous forme matricielle
       </motion.p>
 
-      <motion.div className="flex gap-6" variants={staggerSlow}>
-        {approaches.map((a) => (
+      <div className="flex gap-10 items-center w-full max-w-4xl">
+        {/* Left: the matrix visualization */}
+        <motion.div
+          variants={fadeUp}
+          className="flex flex-col items-center p-6 rounded-2xl border"
+          style={{ borderColor: `${colors.orange}25`, background: `${colors.orange}04` }}
+        >
+          {/* 8x8 grid */}
+          <div className="text-xs font-mono mb-3" style={{ color: colors.orange }}>
+            Matrice d{"'"}adjacence 8x8
+          </div>
+          <svg width="200" height="200" viewBox="0 0 200 200">
+            {/* Grid cells */}
+            {Array.from({ length: 8 }).map((_, r) =>
+              Array.from({ length: 8 }).map((_, c) => {
+                const hasValue = (r === 0 && c === 1) || (r === 1 && c === 2) || (r === 2 && c === 3);
+                return (
+                  <motion.rect
+                    key={`${r}${c}`}
+                    x={c * 24 + 4}
+                    y={r * 24 + 4}
+                    width="20"
+                    height="20"
+                    rx="3"
+                    fill={hasValue ? `${colors.orange}30` : `${colors.grayDark}15`}
+                    stroke={hasValue ? colors.orange : `${colors.grayDark}30`}
+                    strokeWidth="0.5"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.8 + (r * 8 + c) * 0.01, type: "spring" }}
+                  />
+                );
+              })
+            )}
+            {/* "0" labels in empty cells */}
+            {Array.from({ length: 8 }).map((_, r) =>
+              Array.from({ length: 8 }).map((_, c) => {
+                const hasValue = (r === 0 && c === 1) || (r === 1 && c === 2) || (r === 2 && c === 3);
+                if (hasValue) {
+                  const labels = ["R", "L", "C"];
+                  const idx = r;
+                  return (
+                    <text key={`t${r}${c}`} x={c * 24 + 14} y={r * 24 + 18}
+                      textAnchor="middle" fill={colors.orange} fontSize="8" fontWeight="bold" fontFamily="monospace">
+                      {labels[idx]}
+                    </text>
+                  );
+                }
+                return (
+                  <text key={`t${r}${c}`} x={c * 24 + 14} y={r * 24 + 18}
+                    textAnchor="middle" fill={`${colors.grayDark}40`} fontSize="7" fontFamily="monospace">
+                    0
+                  </text>
+                );
+              })
+            )}
+          </svg>
           <motion.div
-            key={a.title}
-            variants={fadeUp}
-            className="flex flex-col p-6 rounded-2xl border relative overflow-hidden"
-            style={{ borderColor: `${a.color}25`, background: `${a.color}04`, width: 280 }}
+            className="mt-3 text-xs font-mono px-3 py-1 rounded"
+            style={{ background: `${colors.resistor}10`, color: colors.resistor }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.8 }}
           >
-            {/* Failed stamp */}
-            <motion.div
-              className="absolute top-3 right-3 text-[10px] font-mono px-2 py-0.5 rounded-full"
-              style={{ background: `${colors.resistor}15`, color: colors.resistor }}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 2.2, type: "spring" }}
-            >
-              ABANDON
-            </motion.div>
-
-            {/* Icon */}
-            <div className="mb-4">{a.icon}</div>
-
-            <div className="text-base font-bold mb-1" style={{ color: a.color }}>{a.title}</div>
-            <div className="text-sm mb-3" style={{ color: colors.grayLight }}>{a.desc}</div>
-
-            {/* Why it failed */}
-            <div className="mt-auto">
-              <div className="text-[10px] font-mono mb-1" style={{ color: colors.gray }}>CAUSE</div>
-              <div className="text-xs mb-2" style={{ color: colors.grayLight }}>{a.why}</div>
-              <div className="text-xs font-mono px-2 py-1 rounded" style={{ background: `${colors.resistor}10`, color: colors.resistor }}>
-                {a.result}
-              </div>
-            </div>
+            90% de zéros
           </motion.div>
-        ))}
-      </motion.div>
+        </motion.div>
 
-      {/* Lesson learned */}
+        {/* Right: problems */}
+        <motion.div variants={fadeUp} className="flex-1 flex flex-col gap-4">
+          {[
+            {
+              title: "Le problème",
+              desc: "Un circuit de 3 composants remplit seulement 3 cases sur 64. Le modèle apprend à prédire \"rien\" partout.",
+              color: colors.orange,
+            },
+            {
+              title: "Résultat",
+              desc: "48% accuracy — le modèle prédit des matrices quasi-vides, incapable de placer les composants au bon endroit.",
+              color: colors.resistor,
+            },
+            {
+              title: "Leçon tirée",
+              desc: "Il faut une représentation compacte où chaque nombre compte. C'est ce qui a motivé les tokens séquentiels.",
+              color: colors.green,
+            },
+          ].map((item, i) => (
+            <motion.div
+              key={item.title}
+              className="p-4 rounded-xl border"
+              style={{ borderColor: `${item.color}30`, background: `${item.color}06` }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 1.2 + i * 0.2, type: "spring" }}
+            >
+              <div className="text-sm font-bold mb-1" style={{ color: item.color }}>
+                {item.title}
+              </div>
+              <div className="text-xs" style={{ color: colors.grayLight }}>
+                {item.desc}
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+      </div>
+
+      {/* Bottom: lesson */}
       <motion.div
         className="mt-8 px-5 py-3 rounded-xl border"
         style={{ borderColor: `${colors.green}30`, background: `${colors.green}08` }}
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 2.5 }}
+        transition={{ delay: 2.2 }}
       >
         <span className="text-sm" style={{ color: colors.green }}>
-          {"Leçon : approche supervisée + représentation séquentielle + "}
+          {"Conclusion : "}
           <span className="font-bold">contraintes architecturales</span>
-          {" (masking > pénalités de loss)"}
+          {" (masking, tokens) > pénalités de loss"}
         </span>
       </motion.div>
     </motion.div>
