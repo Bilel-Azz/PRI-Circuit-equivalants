@@ -30,7 +30,7 @@ const phases = [
     num: "4",
     label: "Diagnostic & analyse",
     desc: "Découverte du biais dataset (<15% de vraies doubles résonances), dataset V5 vérifié",
-    color: colors.red,
+    color: colors.resistor,
     weeks: "S15-S16",
   },
   {
