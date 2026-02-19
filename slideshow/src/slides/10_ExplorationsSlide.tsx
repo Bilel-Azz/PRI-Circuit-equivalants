@@ -126,7 +126,9 @@ export default function ExplorationsSlide() {
         transition={{ delay: 2.5 }}
       >
         <span className="text-sm" style={{ color: colors.green }}>
-          Leçon : approche supervisée + représentation séquentielle = la bonne direction
+          {"Leçon : approche supervisée + représentation séquentielle + "}
+          <span className="font-bold">contraintes architecturales</span>
+          {" (masking > pénalités de loss)"}
         </span>
       </motion.div>
     </motion.div>

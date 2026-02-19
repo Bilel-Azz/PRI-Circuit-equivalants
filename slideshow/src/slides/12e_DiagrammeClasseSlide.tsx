@@ -489,49 +489,32 @@ export default function DiagrammeClasseSlide() {
             animate={{ opacity: 1 }}
             transition={{ delay: 1.5 }}
           >
-            <text
-              x={30}
-              y={340}
-              fill={colors.gray}
-              fontSize="8"
-              fontFamily="monospace"
-            >
-              ── composition {"   "}-- - utilisation {"   "}
+            {/* Composition */}
+            <line x1={30} y1={340} x2={80} y2={340} stroke={colors.grayDark} strokeWidth="1" markerEnd="url(#arrowHead)" />
+            <text x={85} y={343} fill={colors.gray} fontSize="7" fontFamily="monospace">
+              composition (contient)
             </text>
-            <line
-              x1={30}
-              y1={355}
-              x2={80}
-              y2={355}
-              stroke={colors.grayDark}
-              strokeWidth="1"
-            />
-            <text
-              x={85}
-              y={358}
-              fill={colors.gray}
-              fontSize="7"
-              fontFamily="monospace"
-            >
-              composition
+            <text x={85} y={353} fill={colors.grayDark} fontSize="6" fontFamily="monospace">
+              ex: Circuit contient Component[]
             </text>
-            <line
-              x1={170}
-              y1={355}
-              x2={220}
-              y2={355}
-              stroke={colors.grayDark}
-              strokeWidth="1"
-              strokeDasharray="4 3"
-            />
-            <text
-              x={225}
-              y={358}
-              fill={colors.gray}
-              fontSize="7"
-              fontFamily="monospace"
-            >
-              utilisation
+
+            {/* Utilisation */}
+            <line x1={300} y1={340} x2={350} y2={340} stroke={colors.grayDark} strokeWidth="1" strokeDasharray="4 3" markerEnd="url(#arrowHead)" />
+            <text x={355} y={343} fill={colors.gray} fontSize="7" fontFamily="monospace">
+              utilisation (dépend de)
+            </text>
+            <text x={355} y={353} fill={colors.grayDark} fontSize="6" fontFamily="monospace">
+              ex: Backend utilise CircuitModel
+            </text>
+
+            {/* Héritage */}
+            <rect x={570} y={332} width={55} height={14} rx="3" fill={`${colors.purple}15`} stroke={colors.purple} strokeWidth="0.6" />
+            <text x={597} y={342} textAnchor="middle" fill={colors.purple} fontSize="7" fontFamily="monospace">nn.Module</text>
+            <text x={632} y={343} fill={colors.gray} fontSize="7" fontFamily="monospace">
+              héritage (classe parente)
+            </text>
+            <text x={632} y={353} fill={colors.grayDark} fontSize="6" fontFamily="monospace">
+              ex: TransformerV2 hérite de nn.Module
             </text>
           </motion.g>
         </svg>

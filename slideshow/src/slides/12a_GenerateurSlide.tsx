@@ -1,20 +1,35 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { fadeUp, scaleIn, staggerContainer, staggerFast } from "@/lib/animations";
+import { fadeUp, staggerContainer, staggerFast } from "@/lib/animations";
 import { colors } from "@/lib/theme";
 
-const componentTypes = [
-  { type: "R", label: "Résistance", range: "1Ω → 1MΩ", color: colors.resistor },
-  { type: "L", label: "Inductance", range: "1µH → 100mH", color: colors.inductor },
-  { type: "C", label: "Capacité", range: "1pF → 100µF", color: colors.capacitor },
+const pipeline = [
+  { step: "1", label: "Nb composants", desc: "1 à 6 au hasard", color: colors.blue },
+  { step: "2", label: "Types aléatoires", desc: "R, L ou C (uniforme)", color: colors.cyan },
+  { step: "3", label: "Valeurs log-uniform", desc: "R: 1Ω–1MΩ, L: 1µH–100mH, C: 1pF–100µF", color: colors.green },
+  { step: "4", label: "Connexions random", desc: "Nœuds 0–3 tirés au sort", color: colors.purple },
 ];
 
-const templates = [
-  { name: "RLC série", desc: "Résonance simple", pct: "20%", color: colors.cyan },
-  { name: "Tank LC", desc: "Anti-résonance", pct: "25%", color: colors.blue },
-  { name: "Double rés.", desc: "2 pics séparés", pct: "25%", color: colors.purple },
-  { name: "Notch + autres", desc: "Filtres, ladder", pct: "30%", color: colors.orange },
+const problems = [
+  {
+    icon: "⚡",
+    title: "Nœuds isolés",
+    desc: "Des composants connectés à rien → circuits invalides (42% self-loops, 9% validité)",
+    color: colors.resistor,
+  },
+  {
+    icon: "📉",
+    title: "80% de courbes monotones",
+    desc: "Majorité de R ou RC simples, très peu de résonances ou de courbes complexes",
+    color: colors.orange,
+  },
+  {
+    icon: "🎲",
+    title: "Distribution non contrôlée",
+    desc: "Impossible de garantir la diversité — le modèle ne voit que des cas simples",
+    color: colors.yellow,
+  },
 ];
 
 export default function GenerateurSlide() {
@@ -26,102 +41,95 @@ export default function GenerateurSlide() {
       animate="visible"
     >
       <motion.div variants={fadeUp} className="absolute top-8 left-10">
-        <span className="text-xs font-mono px-3 py-1 rounded-full" style={{ background: `${colors.green}15`, color: colors.green }}>
-          03 — Générateur
+        <span
+          className="text-xs font-mono px-3 py-1 rounded-full"
+          style={{ background: `${colors.green}15`, color: colors.green }}
+        >
+          03 — Génération
         </span>
       </motion.div>
 
-      <motion.h2 variants={fadeUp} className="text-4xl font-bold mb-3" style={{ color: colors.white }}>
-        Générateur de circuits
+      <motion.h2
+        variants={fadeUp}
+        className="text-4xl font-bold mb-2"
+        style={{ color: colors.white }}
+      >
+        Génération aléatoire
       </motion.h2>
-      <motion.p variants={fadeUp} className="text-sm mb-8" style={{ color: colors.grayLight }}>
-        100% données synthétiques — chaque circuit est généré aléatoirement puis résolu
+      <motion.p
+        variants={fadeUp}
+        className="text-sm mb-6"
+        style={{ color: colors.grayLight }}
+      >
+        Première approche : circuits 100% random
       </motion.p>
 
-      <div className="flex gap-6 w-full max-w-5xl">
-        {/* Left: Generation process */}
-        <motion.div variants={fadeUp} className="flex-1 flex flex-col gap-4">
-          {/* Step-by-step process */}
-          <div className="flex flex-col gap-3">
-            {[
-              { step: "1", label: "Choisir le nombre de composants", detail: "1 à 6 composants par circuit", color: colors.blue },
-              { step: "2", label: "Tirer les types aléatoirement", detail: "R, L ou C (distribution contrôlée)", color: colors.cyan },
-              { step: "3", label: "Générer les valeurs log-uniform", detail: "Couvre 6+ ordres de grandeur", color: colors.green },
-              { step: "4", label: "Connecter les nœuds", detail: "4 nœuds : GND(0), IN(1), + 2 internes", color: colors.purple },
-            ].map((s, i) => (
-              <motion.div key={s.step}
-                className="flex items-center gap-4 p-3 rounded-xl"
-                style={{ background: `${s.color}06` }}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 + i * 0.15, type: "spring" }}>
-                <motion.div className="w-8 h-8 rounded-full flex items-center justify-center font-bold font-mono text-sm"
-                  style={{ background: `${s.color}20`, color: s.color }}
-                  initial={{ scale: 0 }} animate={{ scale: 1 }}
-                  transition={{ delay: 0.6 + i * 0.15, type: "spring" }}>
-                  {s.step}
-                </motion.div>
-                <div>
-                  <div className="text-sm font-semibold" style={{ color: colors.white }}>{s.label}</div>
-                  <div className="text-[10px]" style={{ color: colors.gray }}>{s.detail}</div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* Right: Component ranges + templates */}
-        <div className="flex flex-col gap-4" style={{ width: 320 }}>
-          {/* Component value ranges */}
-          <motion.div variants={scaleIn}
-            className="p-5 rounded-2xl border"
-            style={{ borderColor: colors.border, background: `${colors.bgCard}cc` }}>
-            <div className="text-sm font-mono mb-3" style={{ color: colors.grayLight }}>Plages de valeurs</div>
-            <div className="flex flex-col gap-2">
-              {componentTypes.map((c, i) => (
-                <motion.div key={c.type}
-                  className="flex items-center gap-3"
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 1 + i * 0.1 }}>
-                  <span className="text-lg font-bold font-mono w-6" style={{ color: c.color }}>{c.type}</span>
-                  <div className="flex-1">
-                    <div className="text-xs" style={{ color: colors.white }}>{c.label}</div>
-                    <div className="text-[10px] font-mono" style={{ color: colors.gray }}>{c.range}</div>
-                  </div>
-                  {/* Log-uniform bar */}
-                  <div className="w-16 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
-                    <motion.div className="h-full rounded-full" style={{ background: c.color }}
-                      initial={{ width: 0 }} animate={{ width: "100%" }}
-                      transition={{ delay: 1.2 + i * 0.1, duration: 0.5 }} />
-                  </div>
-                </motion.div>
-              ))}
+      {/* Pipeline steps */}
+      <motion.div className="flex gap-3 mb-8 w-full max-w-5xl" variants={staggerFast}>
+        {pipeline.map((p, i) => (
+          <motion.div
+            key={p.step}
+            className="flex-1 flex items-start gap-2 p-3 rounded-xl border"
+            style={{ borderColor: `${p.color}25`, background: `${p.color}06` }}
+            variants={fadeUp}
+          >
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+              style={{ background: `${p.color}20`, color: p.color }}
+            >
+              {p.step}
             </div>
-            <div className="text-[10px] font-mono mt-3" style={{ color: colors.gray }}>
-              Distribution log-uniforme → couverture large
+            <div>
+              <div className="text-xs font-bold" style={{ color: p.color }}>{p.label}</div>
+              <div className="text-[10px] mt-0.5" style={{ color: colors.gray }}>{p.desc}</div>
             </div>
           </motion.div>
+        ))}
+      </motion.div>
 
-          {/* Templates (V3) */}
-          <motion.div variants={scaleIn}
-            className="p-5 rounded-2xl border"
-            style={{ borderColor: `${colors.blue}20`, background: `${colors.blue}05` }}>
-            <div className="text-sm font-mono mb-3" style={{ color: colors.blue }}>Templates (V3+)</div>
-            <motion.div className="flex flex-col gap-1.5" variants={staggerFast}>
-              {templates.map((t) => (
-                <motion.div key={t.name} variants={fadeUp}
-                  className="flex items-center gap-2 text-xs">
-                  <div className="w-1 h-4 rounded-full" style={{ background: t.color }} />
-                  <span className="font-semibold" style={{ color: colors.white }}>{t.name}</span>
-                  <span style={{ color: colors.gray }}>{t.desc}</span>
-                  <span className="ml-auto font-mono" style={{ color: t.color }}>{t.pct}</span>
-                </motion.div>
-              ))}
-            </motion.div>
+      {/* Problems */}
+      <motion.div
+        className="text-sm font-mono mb-3"
+        style={{ color: colors.resistor }}
+        variants={fadeUp}
+      >
+        Problèmes identifiés
+      </motion.div>
+
+      <div className="flex gap-4 w-full max-w-5xl mb-6">
+        {problems.map((prob, i) => (
+          <motion.div
+            key={prob.title}
+            className="flex-1 p-4 rounded-xl border"
+            style={{ borderColor: `${prob.color}30`, background: `${prob.color}08` }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 + i * 0.15, type: "spring" }}
+          >
+            <div className="text-lg mb-2">{prob.icon}</div>
+            <div className="text-sm font-bold mb-1" style={{ color: prob.color }}>
+              {prob.title}
+            </div>
+            <div className="text-[10px]" style={{ color: colors.grayLight }}>
+              {prob.desc}
+            </div>
           </motion.div>
-        </div>
+        ))}
       </div>
+
+      {/* Conclusion */}
+      <motion.div
+        className="px-5 py-3 rounded-xl border"
+        style={{ borderColor: `${colors.green}30`, background: `${colors.green}08` }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.5 }}
+      >
+        <span className="text-sm" style={{ color: colors.green }}>
+          {"Solution → "}
+          <span className="font-bold">générateur par templates de topologies</span>
+        </span>
+      </motion.div>
     </motion.div>
   );
 }

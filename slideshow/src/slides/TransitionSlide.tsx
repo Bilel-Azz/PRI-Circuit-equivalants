@@ -22,12 +22,11 @@ const allSections = [
     title: "R\u00e9alisation Technique",
     color: colors.green,
     items: [
-      "Explorations & Pivot",
-      "G\u00e9n\u00e9rateur & Topologies",
-      "Pipeline de donn\u00e9es (MNA, encodage)",
-      "Architecture IA (CNN + Transformer)",
-      "Datasets, entra\u00eenement & r\u00e9sultats",
-      "Application web (Backend + Frontend)",
+      "Génération de données",
+      "Représentation des circuits",
+      "Choix d'architecture",
+      "Entraînement & résultats",
+      "Application web",
     ],
   },
   {

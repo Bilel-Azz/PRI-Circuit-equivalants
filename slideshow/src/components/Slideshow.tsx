@@ -21,18 +21,19 @@ import GanttSlide from "@/slides/07_GanttSlide";
 import RisquesSlide from "@/slides/08_RisquesSlide";
 import SperSlide from "@/slides/09_SperSlide";
 import ExplorationsSlide from "@/slides/10_ExplorationsSlide";
-import PivotSlide from "@/slides/11_PivotSlide";
 import GenerateurSlide from "@/slides/12a_GenerateurSlide";
 import TopologiesSlide from "@/slides/12ab_TopologiesSlide";
 import RepresentationSlide from "@/slides/12b_RepresentationSlide";
+import RepresentationTokensSlide from "@/slides/12b2_RepresentationTokensSlide";
 import PipelineMNASlide from "@/slides/12c_PipelineMNASlide";
 import EncodageCourbeSlide from "@/slides/12d_EncodageCourbeSlide";
 import DiagrammeClasseSlide from "@/slides/12e_DiagrammeClasseSlide";
 import ArchitectureModelSlide from "@/slides/12_ArchitectureModelSlide";
 import DatasetsSlide from "@/slides/13_DatasetsSlide";
+import EvolutionModeleSlide from "@/slides/13b_EvolutionModeleSlide";
 import ResultatsSlide from "@/slides/14_ResultatsSlide";
 import ExperimentationsSlide from "@/slides/14b_ExperimentationsSlide";
-import GpuOptimSlide from "@/slides/15_GpuOptimSlide";
+import OptimisationsSlide from "@/slides/15_GpuOptimSlide";
 import BackendSlide from "@/slides/16_BackendSlide";
 import FrontendSlide from "@/slides/17_FrontendSlide";
 import ProblemesSlide from "@/slides/18_ProblemesSlide";
@@ -58,23 +59,24 @@ const slides = [
   GanttSlide,
   RisquesSlide,
   SperSlide,
-  // --- Section 03 : R\u00e9alisation technique ---
+  // --- Section 03 : Réalisation technique ---
   Transition03,
-  ExplorationsSlide,
-  PivotSlide,
-  GenerateurSlide,
-  TopologiesSlide,
-  RepresentationSlide,
-  PipelineMNASlide,
-  EncodageCourbeSlide,
-  ArchitectureModelSlide,
-  DiagrammeClasseSlide,
-  DatasetsSlide,
-  GpuOptimSlide,
-  ResultatsSlide,
-  ExperimentationsSlide,
-  BackendSlide,
-  FrontendSlide,
+  GenerateurSlide,          // ① Générateur random + problèmes
+  TopologiesSlide,          // ② Générateur templates
+  RepresentationSlide,      // ③ Représentation 1/2 (matrice → échec)
+  RepresentationTokensSlide,// ④ Représentation 2/2 (tokens séquentiels)
+  PipelineMNASlide,         // ⑤ Pipeline MNA
+  EncodageCourbeSlide,      // ⑥ Encodage courbe
+  ExplorationsSlide,        // ⑦ Approches explorées (déplacé)
+  ArchitectureModelSlide,   // ⑧ Architecture modèle
+  DiagrammeClasseSlide,     // ⑨ Diagramme classes + légende
+  DatasetsSlide,            // ⑩ Datasets
+  EvolutionModeleSlide,     // ⑪ Évolution V1→V5
+  ResultatsSlide,           // ⑫ Résultats
+  ExperimentationsSlide,    // ⑬ Expérimentations post-V5
+  OptimisationsSlide,       // ⑭ Optimisations
+  BackendSlide,             // ⑮ Backend
+  FrontendSlide,            // ⑯ Frontend
   // --- Section 04 : Bilan ---
   Transition04,
   ProblemesSlide,
@@ -101,20 +103,21 @@ const slideLabels = [
   "Risques",
   "SPER",
   // 03
-  "R\u00e9alisation",
-  "Explorations",
-  "Le pivot",
-  "G\u00e9n\u00e9rateur",
-  "Topologies",
-  "Repr\u00e9sentation",
+  "Réalisation",
+  "Générateur random",
+  "Générateur templates",
+  "Représentation 1/2",
+  "Tokens séquentiels",
   "Pipeline MNA",
   "Encodage courbe",
+  "Approches explorées",
   "Architecture IA",
   "Diagramme classes",
   "Datasets",
-  "Optim GPU",
-  "R\u00e9sultats",
-  "Exp\u00e9rimentations",
+  "Évolution V1→V5",
+  "Résultats",
+  "Expérimentations",
+  "Optimisations",
   "Backend",
   "Frontend",
   // 04
@@ -129,10 +132,10 @@ const slideLabels = [
 // Section boundaries for color-coding dots
 const sectionColors = [
   { start: 0, end: 1, color: colors.blue },       // Intro
-  { start: 2, end: 7, color: colors.blue },        // Transition01 + Contexte (+1 slide)
+  { start: 2, end: 7, color: colors.blue },        // Transition01 + Contexte
   { start: 8, end: 12, color: colors.cyan },       // Transition02 + Gestion
-  { start: 13, end: 29, color: colors.green },     // Transition03 + Réalisation
-  { start: 30, end: 35, color: colors.purple },    // Transition04 + Bilan
+  { start: 13, end: 30, color: colors.green },     // Transition03 + Réalisation (+1 slide)
+  { start: 31, end: 36, color: colors.purple },    // Transition04 + Bilan
 ];
 
 function getDotColor(index: number, isCurrent: boolean): string {
