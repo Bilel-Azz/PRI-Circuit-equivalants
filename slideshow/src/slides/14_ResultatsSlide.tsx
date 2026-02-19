@@ -29,16 +29,16 @@ function predCurve(): string {
 }
 
 const metrics = [
-  { label: "Type accuracy", value: "99.8%", color: colors.green },
   { label: "Self-loops", value: "0%", color: colors.green },
-  { label: "Validité", value: "~40%", color: colors.yellow },
-  { label: "Best-of-50 RMSE", value: "0.35", color: colors.blue },
+  { label: "Validité brute", value: "~40%", color: colors.yellow },
+  { label: "Après réparation", value: "~65%", color: colors.green },
+  { label: "RMSE best-of-50", value: "0.35", color: colors.blue },
 ];
 
 const evolution = [
-  { version: "V1-V2", acc: "94.8%", validity: "9%", selfLoops: "42%", color: colors.resistor },
-  { version: "V4", acc: "97.2%", validity: "60%", selfLoops: "0%", color: colors.orange },
-  { version: "V5", acc: "99.8%", validity: "40%", selfLoops: "0%", color: colors.green },
+  { version: "V1-V2", validity: "9%", selfLoops: "42%", rmse: "—", color: colors.resistor },
+  { version: "V4", validity: "60%", selfLoops: "0%", rmse: "~1.2", color: colors.orange },
+  { version: "V5", validity: "~40%", selfLoops: "0%", rmse: "0.35", color: colors.green },
 ];
 
 export default function ResultatsSlide() {
@@ -119,9 +119,9 @@ export default function ResultatsSlide() {
               {/* Header */}
               <div className="flex gap-2 px-2 py-1 text-[10px] font-mono" style={{ color: colors.gray }}>
                 <span className="w-16">Version</span>
-                <span className="w-16 text-center">Accuracy</span>
                 <span className="w-16 text-center">Validité</span>
                 <span className="w-16 text-center">Self-loops</span>
+                <span className="w-20 text-center">RMSE (best-of-50)</span>
               </div>
               {evolution.map((row, i) => (
                 <motion.div key={row.version}
@@ -131,9 +131,9 @@ export default function ResultatsSlide() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 1.8 + i * 0.15 }}>
                   <span className="w-16 font-mono font-bold text-xs" style={{ color: row.color }}>{row.version}</span>
-                  <span className="w-16 text-center text-xs" style={{ color: colors.white }}>{row.acc}</span>
                   <span className="w-16 text-center text-xs" style={{ color: colors.white }}>{row.validity}</span>
                   <span className="w-16 text-center text-xs" style={{ color: row.selfLoops === "0%" ? colors.green : colors.resistor }}>{row.selfLoops}</span>
+                  <span className="w-20 text-center text-xs" style={{ color: colors.white }}>{row.rmse}</span>
                 </motion.div>
               ))}
             </div>

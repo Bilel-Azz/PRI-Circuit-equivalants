@@ -8,37 +8,37 @@ const versions = [
   {
     version: "V1–V2",
     change: "Heads indépendantes, loss basique (MSE + CrossEntropy)",
-    metrics: { type: "94.8%", selfLoops: "42%", valid: "9%" },
+    metrics: { selfLoops: "42%", valid: "9%", valLoss: "~2.5" },
     highlight: "selfLoops",
     color: colors.resistor,
   },
   {
     version: "V3",
     change: "Loss V2 : pénalités de validité (self-loop, duplicate, GND/IN)",
-    metrics: { type: "96%", selfLoops: "20%", valid: "30%" },
+    metrics: { selfLoops: "20%", valid: "30%", valLoss: "~1.2" },
     highlight: "selfLoops",
     color: colors.orange,
   },
   {
     version: "V4",
     change: "Decoder contraint : masking node_b ≠ node_a",
-    metrics: { type: "97.2%", selfLoops: "0%", valid: "60%" },
+    metrics: { selfLoops: "0%", valid: "60%", valLoss: "~0.7" },
     highlight: "valid",
     color: colors.yellow,
   },
   {
     version: "V5",
     change: "Dataset V3 (150k équilibré, templates) + 100 epochs",
-    metrics: { type: "99.8%", selfLoops: "0%", valid: "~40%" },
-    highlight: "type",
+    metrics: { selfLoops: "0%", valid: "~40%", valLoss: "0.256" },
+    highlight: "valid",
     color: colors.green,
     isBest: true,
   },
   {
     version: "V6",
     change: "Dataset V4 (doubles forcées) + tau annealing agressif",
-    metrics: { type: "66%", selfLoops: "0%", valid: "—" },
-    highlight: "type",
+    metrics: { selfLoops: "0%", valid: "—", valLoss: "8.5" },
+    highlight: "valLoss",
     color: colors.resistor,
     isFail: true,
     note: "Overfitting epoch 15 → retour V5",
@@ -137,10 +137,6 @@ export default function EvolutionModeleSlide() {
 
               {/* Metrics */}
               <div className="flex gap-3 text-[10px] font-mono shrink-0">
-                <div style={{ color: v.highlight === "type" ? v.color : colors.gray }}>
-                  <span style={{ color: colors.grayDark }}>type: </span>
-                  {v.metrics.type}
-                </div>
                 <div style={{ color: v.highlight === "selfLoops" ? v.color : colors.gray }}>
                   <span style={{ color: colors.grayDark }}>loops: </span>
                   {v.metrics.selfLoops}
@@ -148,6 +144,10 @@ export default function EvolutionModeleSlide() {
                 <div style={{ color: v.highlight === "valid" ? v.color : colors.gray }}>
                   <span style={{ color: colors.grayDark }}>valid: </span>
                   {v.metrics.valid}
+                </div>
+                <div style={{ color: v.highlight === "valLoss" ? v.color : colors.gray }}>
+                  <span style={{ color: colors.grayDark }}>loss: </span>
+                  {v.metrics.valLoss}
                 </div>
               </div>
             </div>

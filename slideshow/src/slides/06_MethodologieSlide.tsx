@@ -23,7 +23,7 @@ const phases = [
   {
     num: "2",
     label: "Pivot & modèles V1→V5",
-    desc: "Reprise intensive, datasets V1-V3, decoder contraint (0% self-loops), modèle V5 = 99.8% type accuracy",
+    desc: "Reprise intensive, datasets V1-V3, decoder contraint (0% self-loops), modèle V5 = meilleur résultat",
     color: colors.green,
     period: "20 déc — mi-jan",
   },

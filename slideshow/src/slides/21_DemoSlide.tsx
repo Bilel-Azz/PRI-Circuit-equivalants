@@ -6,9 +6,9 @@ import { colors } from "@/lib/theme";
 
 const stats = [
   { label: "Dataset", value: "150k", sub: "circuits synthétiques" },
-  { label: "Accuracy", value: "99.8%", sub: "type prediction" },
-  { label: "Latence", value: "<2s", sub: "50 candidats" },
-  { label: "Self-loops", value: "0%", sub: "éliminés" },
+  { label: "RMSE", value: "0.35", sub: "best-of-50 candidats" },
+  { label: "Latence", value: "<2s", sub: "50 candidats générés" },
+  { label: "Self-loops", value: "0%", sub: "éliminés par masking" },
 ];
 
 export default function DemoSlide() {
