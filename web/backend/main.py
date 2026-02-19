@@ -9,7 +9,17 @@ from pydantic import BaseModel
 from typing import List, Optional
 import numpy as np
 
-from config import CORS_ORIGINS, NUM_FREQ, FREQ_MIN, FREQ_MAX
+import importlib.util, pathlib
+_spec = importlib.util.spec_from_file_location(
+    "backend_config", pathlib.Path(__file__).parent / "backend_config.py"
+)
+_cfg = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_cfg)
+CORS_ORIGINS = _cfg.CORS_ORIGINS
+NUM_FREQ = _cfg.NUM_FREQ
+FREQ_MIN = _cfg.FREQ_MIN
+FREQ_MAX = _cfg.FREQ_MAX
+
 from model_utils import get_model
 
 # =============================================================================
@@ -234,5 +244,4 @@ async def startup_event():
 
 if __name__ == "__main__":
     import uvicorn
-    from config import API_HOST, API_PORT
-    uvicorn.run(app, host=API_HOST, port=API_PORT)
+    uvicorn.run(app, host=_cfg.API_HOST, port=_cfg.API_PORT)

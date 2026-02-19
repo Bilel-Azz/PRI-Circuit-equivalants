@@ -1,423 +1,400 @@
 'use client';
 
 import { Component } from '@/lib/api';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface CircuitDisplayProps {
   components: Component[];
-  title?: string;
+  compact?: boolean;
 }
 
-// SVG component symbols
+// Lighter SVG component symbols (stroke set by parent)
 const SYMBOLS = {
   R: (
-    <path
-      d="M-25 0 L-18 0 L-14 -8 L-6 8 L2 -8 L10 8 L14 0 L25 0"
-      fill="none"
-      stroke="currentColor"
-    />
+    <path d="M-20 0 L-14 0 L-11 -7 L-5 7 L1 -7 L7 7 L11 0 L20 0" fill="none" strokeWidth="2" stroke="currentColor" />
   ),
   L: (
-    <path
-      d="M-25 0 L-18 0 Q-14 -10 -10 0 Q-6 -10 -2 0 Q2 -10 6 0 Q10 -10 14 0 L25 0"
-      fill="none"
-      stroke="currentColor"
-    />
+    <path d="M-20 0 L-14 0 Q-10 -9 -6 0 Q-2 -9 2 0 Q6 -9 10 0 Q14 -9 16 0 L20 0" fill="none" strokeWidth="2" stroke="currentColor" />
   ),
   C: (
-    <g stroke="currentColor">
-      <path d="M-25 0 L-4 0" />
-      <path d="M25 0 L4 0" />
-      <line x1="-4" y1="-12" x2="-4" y2="12" strokeWidth="3" />
-      <line x1="4" y1="-12" x2="4" y2="12" strokeWidth="3" />
+    <g strokeWidth="2" stroke="currentColor">
+      <path d="M-20 0 L-3 0" />
+      <path d="M20 0 L3 0" />
+      <line x1="-3" y1="-10" x2="-3" y2="10" strokeWidth="2.5" />
+      <line x1="3" y1="-10" x2="3" y2="10" strokeWidth="2.5" />
     </g>
   ),
   SOURCE: (
     <g>
-      <circle cx="0" cy="0" r="18" fill="none" stroke="currentColor" strokeWidth="2" />
-      <path d="M-8 0 Q-4 -6 0 0 T8 0" fill="none" stroke="currentColor" strokeWidth="2" />
+      <circle cx="0" cy="0" r="16" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M-7 0 Q-3 -5 0 0 T7 0" fill="none" stroke="currentColor" strokeWidth="1.5" />
     </g>
-  )
+  ),
 };
 
-export default function CircuitDisplay({ components, title }: CircuitDisplayProps) {
+const COMP_COLORS: Record<string, string> = {
+  R: '#f97316',
+  L: '#3b82f6',
+  C: '#10b981',
+};
+
+type NodePair = string;
+function pairKey(a: number, b: number): NodePair {
+  return `${Math.min(a, b)}-${Math.max(a, b)}`;
+}
+
+export default function CircuitDisplay({ components, compact }: CircuitDisplayProps) {
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    // Auto-fit on load if components change
-    if (components.length > 0) {
-      handleReset();
-    }
+  const handleReset = useCallback(() => {
+    if (!containerRef.current || !components.length) return;
+    const { width, height } = containerRef.current.getBoundingClientRect();
+    const scaleX = width / SCENE_WIDTH;
+    const scaleY = height / SCENE_HEIGHT;
+    const s = Math.min(scaleX, scaleY) * 0.85;
+    setTransform({
+      x: (width - SCENE_WIDTH * s) / 2,
+      y: (height - SCENE_HEIGHT * s) / 2,
+      k: s,
+    });
   }, [components]);
+
+  useEffect(() => {
+    if (components.length > 0) {
+      // Slight delay so container has rendered
+      requestAnimationFrame(handleReset);
+    }
+  }, [components, handleReset]);
 
   if (!components || components.length === 0) {
     return (
-      <div className="p-12 bg-secondary/10 rounded-xl border border-dashed border-input flex flex-col items-center justify-center text-muted-foreground min-h-[300px]">
-        <p className="font-bold text-lg">No circuit generated yet</p>
+      <div className="flex items-center justify-center h-48 text-[hsl(var(--muted-foreground))] text-sm">
+        No circuit data
       </div>
     );
   }
 
-  // 1. Analyze Topology
+  // ── Topology Analysis ──
   const nodes = new Set<number>();
-  components.forEach((c) => {
-    nodes.add(c.node_a);
-    nodes.add(c.node_b);
+  components.forEach((c) => { nodes.add(c.node_a); nodes.add(c.node_b); });
+  const signalNodes = Array.from(nodes).filter(n => n !== 0).sort((a, b) => a - b);
+
+  // Group components by node pair to detect parallel connections
+  const pairMap = new Map<NodePair, Component[]>();
+  components.forEach(c => {
+    const key = pairKey(c.node_a, c.node_b);
+    if (!pairMap.has(key)) pairMap.set(key, []);
+    pairMap.get(key)!.push(c);
   });
-  const uniqueNodes = Array.from(nodes).sort((a, b) => a - b);
-  const signalNodes = uniqueNodes.filter(n => n !== 0);
 
-  // Separate components by type
-  const shuntComponents = components.filter(c => c.node_a === 0 || c.node_b === 0);
-  const seriesComponents = components.filter(c => c.node_a !== 0 && c.node_b !== 0);
+  // Categorize
+  const shuntGroups: { node: number; comps: Component[] }[] = [];
+  const seriesGroups: { nodeA: number; nodeB: number; comps: Component[] }[] = [];
+  const bypassGroups: { nodeA: number; nodeB: number; comps: Component[] }[] = [];
 
-  // Find main path components (adjacent nodes) vs bypass (skip connections)
-  const mainPathComps: Component[] = [];
-  const bypassComps: Component[] = [];
-
-  seriesComponents.forEach(c => {
-    const idxA = signalNodes.indexOf(c.node_a);
-    const idxB = signalNodes.indexOf(c.node_b);
-    if (Math.abs(idxA - idxB) === 1) {
-      mainPathComps.push(c);
+  pairMap.forEach((comps, key) => {
+    const [a, b] = key.split('-').map(Number);
+    if (a === 0 || b === 0) {
+      const signalNode = a === 0 ? b : a;
+      shuntGroups.push({ node: signalNode, comps });
     } else {
-      bypassComps.push(c);
+      const idxA = signalNodes.indexOf(a);
+      const idxB = signalNodes.indexOf(b);
+      if (Math.abs(idxA - idxB) === 1) {
+        seriesGroups.push({ nodeA: a, nodeB: b, comps });
+      } else {
+        bypassGroups.push({ nodeA: a, nodeB: b, comps });
+      }
     }
   });
 
-  // Layout Constants
-  const GRID = 120;
-  const PADDING = 100;
-  const SCENE_WIDTH = Math.max(900, (signalNodes.length + 1) * GRID + PADDING * 2);
-  const SCENE_HEIGHT = 500;
-  const MAIN_Y = 200;  // Main horizontal line
-  const BOT_Y = 380;   // Ground rail
+  // Layout
+  const GRID = 140;
+  const PADDING = 90;
+  const SCENE_WIDTH = Math.max(800, (signalNodes.length + 1) * GRID + PADDING * 2);
+  const SCENE_HEIGHT = 420;
+  const MAIN_Y = 160;
+  const BOT_Y = 340;
   const SOURCE_X = PADDING;
 
-  // Node positions
   const nodeX = new Map<number, number>();
-  signalNodes.forEach((n, i) => {
-    nodeX.set(n, PADDING + (i + 1) * GRID);
-  });
+  signalNodes.forEach((n, i) => { nodeX.set(n, PADDING + (i + 1) * GRID); });
 
-  // Assign bypass components to different arc levels to avoid overlap
-  const bypassLevels = new Map<Component, number>();
-  const usedLevels: { minIdx: number; maxIdx: number; level: number }[] = [];
-
-  bypassComps.forEach(comp => {
-    const idxA = signalNodes.indexOf(comp.node_a);
-    const idxB = signalNodes.indexOf(comp.node_b);
-    const minIdx = Math.min(idxA, idxB);
-    const maxIdx = Math.max(idxA, idxB);
-
-    // Find a level that doesn't overlap
-    let level = 1;
-    while (usedLevels.some(u =>
-      u.level === level && !(maxIdx < u.minIdx || minIdx > u.maxIdx)
-    )) {
-      level++;
-    }
-
-    bypassLevels.set(comp, level);
-    usedLevels.push({ minIdx, maxIdx, level });
-  });
-
-  // --- Pan/Zoom Handlers ---
+  // ── Handlers ──
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-
-    const scaleFactor = 1.1;
-    const delta = -e.deltaY;
-    const newScale = delta > 0 ? transform.k * scaleFactor : transform.k / scaleFactor;
-
-    // Limit zoom
-    if (newScale < 0.2 || newScale > 5) return;
-
-    // Zoom towards center (simplified) or mouse pointer
-    // For simplicity, zoom center
-    setTransform(prev => ({ ...prev, k: newScale }));
+    const f = 1.08;
+    const nk = e.deltaY < 0 ? transform.k * f : transform.k / f;
+    if (nk < 0.15 || nk > 6) return;
+    setTransform(prev => ({ ...prev, k: nk }));
   };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setLastPos({ x: e.clientX, y: e.clientY });
-  };
-
+  const handleMouseDown = (e: React.MouseEvent) => { setIsDragging(true); setLastPos({ x: e.clientX, y: e.clientY }); };
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return;
-    const dx = e.clientX - lastPos.x;
-    const dy = e.clientY - lastPos.y;
-    setTransform(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
+    setTransform(prev => ({ ...prev, x: prev.x + e.clientX - lastPos.x, y: prev.y + e.clientY - lastPos.y }));
     setLastPos({ x: e.clientX, y: e.clientY });
   };
-
   const handleMouseUp = () => setIsDragging(false);
 
-  const handleReset = () => {
-    // Fit to screen logic
-    if (!containerRef.current) return;
-    const { width, height } = containerRef.current.getBoundingClientRect();
-    const scaleX = width / SCENE_WIDTH;
-    const scaleY = height / SCENE_HEIGHT;
-    const minScale = Math.min(scaleX, scaleY) * 0.9; // 90% fit
+  // ── Helper: draw a component symbol with label ──
+  function renderComp(comp: Component, cx: number, cy: number, rotate: boolean, labelSide: 'top' | 'right' = 'top') {
+    const color = COMP_COLORS[comp.type] || '#888';
+    const rot = rotate ? 'rotate(90)' : '';
+    const lx = labelSide === 'right' ? 28 : 0;
+    const ly = labelSide === 'right' ? 4 : -14;
+    const anchor = labelSide === 'right' ? 'start' : 'middle';
 
-    const startX = (width - SCENE_WIDTH * minScale) / 2;
-    const startY = (height - SCENE_HEIGHT * minScale) / 2;
+    return (
+      <g transform={`translate(${cx}, ${cy})`}>
+        <g transform={rot} style={{ color }}>
+          {SYMBOLS[comp.type as 'R' | 'L' | 'C']}
+        </g>
+        <text x={lx} y={ly} textAnchor={anchor} fill={color} className="text-[10px] font-semibold font-mono">
+          {comp.formatted_value}
+        </text>
+      </g>
+    );
+  }
 
-    setTransform({ x: startX, y: startY, k: minScale });
-  };
+  // ── Helper: draw parallel group between two points ──
+  function renderParallelGroup(comps: Component[], x1: number, y1: number, x2: number, y2: number, baseColor: string, labelSide: 'top' | 'right' = 'top') {
+    if (comps.length === 1) {
+      const cx = (x1 + x2) / 2;
+      const cy = (y1 + y2) / 2;
+      const isVertical = Math.abs(y2 - y1) > Math.abs(x2 - x1);
+      return (
+        <g>
+          {isVertical ? (
+            <>
+              <line x1={x1} y1={y1} x2={cx} y2={cy - 20} stroke="#94a3b8" strokeWidth="1.5" />
+              <line x1={cx} y1={cy + 20} x2={x2} y2={y2} stroke="#94a3b8" strokeWidth="1.5" />
+            </>
+          ) : (
+            <>
+              <line x1={x1} y1={y1} x2={cx - 20} y2={cy} stroke="#94a3b8" strokeWidth="1.5" />
+              <line x1={cx + 20} y1={cy} x2={x2} y2={y2} stroke="#94a3b8" strokeWidth="1.5" />
+            </>
+          )}
+          {renderComp(comps[0], cx, cy, isVertical, labelSide)}
+        </g>
+      );
+    }
+
+    // Multiple components in parallel — draw split paths
+    const isVertical = Math.abs(y2 - y1) > Math.abs(x2 - x1);
+    const n = comps.length;
+    const spacing = isVertical ? 60 : 50;
+    const totalWidth = (n - 1) * spacing;
+
+    return (
+      <g>
+        {comps.map((comp, i) => {
+          const offset = -totalWidth / 2 + i * spacing;
+
+          if (isVertical) {
+            // Vertical parallel: spread horizontally
+            const midY = (y1 + y2) / 2;
+            const ox = x1 + offset;
+            return (
+              <g key={i}>
+                {/* Top wire */}
+                <path d={`M ${x1} ${y1} L ${ox} ${y1} L ${ox} ${midY - 20}`} fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                {/* Bottom wire */}
+                <path d={`M ${ox} ${midY + 20} L ${ox} ${y2} L ${x1} ${y2}`} fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                {/* Component */}
+                {renderComp(comp, ox, midY, true, 'right')}
+              </g>
+            );
+          } else {
+            // Horizontal parallel: spread vertically
+            const midX = (x1 + x2) / 2;
+            const oy = y1 + offset;
+            return (
+              <g key={i}>
+                {/* Left wire */}
+                <path d={`M ${x1} ${y1} L ${x1} ${oy} L ${midX - 20} ${oy}`} fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                {/* Right wire */}
+                <path d={`M ${midX + 20} ${oy} L ${x2} ${oy} L ${x2} ${y2}`} fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                {/* Component */}
+                {renderComp(comp, midX, oy, false, 'top')}
+              </g>
+            );
+          }
+        })}
+      </g>
+    );
+  }
+
+  // Assign bypass levels
+  const bypassLevels = new Map<string, number>();
+  const usedLevels: { min: number; max: number; level: number }[] = [];
+  bypassGroups.forEach(g => {
+    const a = signalNodes.indexOf(g.nodeA);
+    const b = signalNodes.indexOf(g.nodeB);
+    const mn = Math.min(a, b), mx = Math.max(a, b);
+    let level = 1;
+    while (usedLevels.some(u => u.level === level && !(mx < u.min || mn > u.max))) level++;
+    bypassLevels.set(pairKey(g.nodeA, g.nodeB), level);
+    usedLevels.push({ min: mn, max: mx, level });
+  });
+
+  const containerHeight = compact ? 'h-[320px]' : 'h-[420px]';
 
   return (
-    <div className="space-y-6">
-      {title && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
-            <h3 className="text-xl font-black tracking-tight text-foreground">{title}</h3>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                // Generate SPICE netlist
-                const formatValue = (val: number, type: string) => {
-                  if (type === 'R') {
-                    if (val >= 1e6) return `${(val/1e6).toFixed(3)}Meg`;
-                    if (val >= 1e3) return `${(val/1e3).toFixed(3)}k`;
-                    return `${val.toFixed(3)}`;
-                  } else if (type === 'L') {
-                    if (val >= 1) return `${val.toFixed(6)}`;
-                    if (val >= 1e-3) return `${(val*1e3).toFixed(3)}m`;
-                    if (val >= 1e-6) return `${(val*1e6).toFixed(3)}u`;
-                    return `${(val*1e9).toFixed(3)}n`;
-                  } else if (type === 'C') {
-                    if (val >= 1e-6) return `${(val*1e6).toFixed(3)}u`;
-                    if (val >= 1e-9) return `${(val*1e9).toFixed(3)}n`;
-                    return `${(val*1e12).toFixed(3)}p`;
-                  }
-                  return val.toString();
-                };
-
-                let spice = '* Circuit generated by Circuit Synthesis AI\n';
-                spice += '* https://github.com/circuit-synthesis\n\n';
-                spice += '* AC source at node 1\n';
-                spice += 'VAC 1 0 AC 1\n\n';
-                spice += '* Components\n';
-
-                components.forEach((c, i) => {
-                  const name = `${c.type}${i + 1}`;
-                  const val = formatValue(c.value, c.type);
-                  spice += `${name} ${c.node_a} ${c.node_b} ${val}\n`;
-                });
-
-                spice += '\n* AC Analysis (10Hz to 10MHz)\n';
-                spice += '.AC DEC 100 10 10Meg\n';
-                spice += '.END\n';
-
-                const blob = new Blob([spice], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = 'circuit.cir';
-                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-              }}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-            >
-              Export SPICE
-            </button>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(JSON.stringify(components, null, 2));
-                alert('Circuit JSON copied to clipboard!');
-              }}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-border bg-background hover:bg-secondary transition-colors"
-            >
-              Copy JSON
-            </button>
-            <button
-              onClick={() => {
-                const blob = new Blob([JSON.stringify(components, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = 'circuit.json';
-                document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
-              }}
-              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-border bg-background hover:bg-secondary transition-colors"
-            >
-              Download
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Schematic Container */}
+    <div className="space-y-4">
       <div
         ref={containerRef}
-        className="bg-white dark:bg-[#09090b] rounded-2xl border border-border shadow-2xl relative overflow-hidden group h-[500px] cursor-grab active:cursor-grabbing"
+        className={`bg-white rounded-xl border border-[hsl(var(--border))] relative overflow-hidden ${containerHeight} cursor-grab active:cursor-grabbing`}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
       >
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#80808015_1px,transparent_1px),linear-gradient(to_bottom,#80808015_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
+        {/* Subtle grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f010_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f010_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none" />
 
-        {/* Controls Overlay */}
-        <div className="absolute bottom-4 right-4 flex flex-col gap-2 bg-background/80 backdrop-blur border border-border rounded-lg p-1.5 shadow-lg z-10">
-          <button onClick={() => setTransform(t => ({ ...t, k: t.k * 1.2 }))} className="p-2 hover:bg-secondary rounded-md" title="Zoom In">+</button>
-          <button onClick={() => setTransform(t => ({ ...t, k: t.k / 1.2 }))} className="p-2 hover:bg-secondary rounded-md" title="Zoom Out">-</button>
-          <button onClick={handleReset} className="p-2 hover:bg-secondary rounded-md" title="Reset View">⟲</button>
+        {/* Zoom controls */}
+        <div className="absolute bottom-3 right-3 flex gap-1 bg-white/90 backdrop-blur border border-[hsl(var(--border))] rounded-lg p-0.5 shadow-sm z-10">
+          <button onClick={() => setTransform(t => ({ ...t, k: t.k * 1.2 }))} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-sm font-medium">+</button>
+          <button onClick={() => setTransform(t => ({ ...t, k: t.k / 1.2 }))} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-sm font-medium">-</button>
+          <button onClick={handleReset} className="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded text-xs">&#8634;</button>
         </div>
 
-        <svg
-          width="100%"
-          height="100%"
-          className="select-none"
-        >
-          <defs>
-            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="2" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-          </defs>
-
+        <svg width="100%" height="100%" className="select-none">
           <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.k})`}>
-            {/* --- 1. Draw Main Rails --- */}
-
-            {/* Source Symbol */}
-            <g transform={`translate(${SOURCE_X}, ${MAIN_Y})`} className="text-primary">
+            {/* ── Rails ── */}
+            {/* Source */}
+            <g transform={`translate(${SOURCE_X}, ${MAIN_Y})`} style={{ color: '#3b82f6' }}>
               {SYMBOLS.SOURCE}
-              <text x="-35" y="5" textAnchor="end" className="text-xs font-bold font-mono fill-muted-foreground">VAC</text>
+              <text x="-32" y="5" textAnchor="end" className="text-[10px] font-semibold font-mono" fill="#64748b">VAC</text>
             </g>
 
-            {/* Wire: Source to First Node */}
-            <line
-              x1={SOURCE_X + 18} y1={MAIN_Y}
-              x2={nodeX.get(signalNodes[0])!} y2={MAIN_Y}
-              stroke="currentColor" strokeWidth="2.5" className="text-foreground/70"
-            />
+            {/* Main horizontal wire — segmented to avoid short-circuiting series components */}
+            {(() => {
+              const seriesPairSet = new Set<string>();
+              seriesGroups.forEach(g => seriesPairSet.add(pairKey(g.nodeA, g.nodeB)));
 
-            {/* Main horizontal line connecting nodes */}
-            <line
-              x1={nodeX.get(signalNodes[0])!} y1={MAIN_Y}
-              x2={nodeX.get(signalNodes[signalNodes.length - 1])!} y2={MAIN_Y}
-              stroke="currentColor" strokeWidth="2.5" className="text-foreground/70"
-            />
+              const segments: [number, number][] = [];
+              // Source to first signal node
+              segments.push([SOURCE_X + 16, nodeX.get(signalNodes[0])!]);
+              // Between adjacent nodes — only where NO series component exists
+              for (let i = 0; i < signalNodes.length - 1; i++) {
+                const a = signalNodes[i], b = signalNodes[i + 1];
+                if (!seriesPairSet.has(pairKey(a, b))) {
+                  segments.push([nodeX.get(a)!, nodeX.get(b)!]);
+                }
+              }
+              // Last node to end
+              const lastX = nodeX.get(signalNodes[signalNodes.length - 1])!;
+              segments.push([lastX, lastX + 20]);
+
+              return segments.map(([sx, ex], i) => (
+                <line key={`main-wire-${i}`} x1={sx} y1={MAIN_Y} x2={ex} y2={MAIN_Y}
+                  stroke="#94a3b8" strokeWidth="2" />
+              ));
+            })()}
 
             {/* Ground rail */}
-            <line
-              x1={SOURCE_X} y1={BOT_Y}
-              x2={nodeX.get(signalNodes[signalNodes.length - 1])! + 40} y2={BOT_Y}
-              stroke="currentColor" strokeWidth="2.5" className="text-foreground/70"
-            />
+            <line x1={SOURCE_X} y1={BOT_Y} x2={nodeX.get(signalNodes[signalNodes.length - 1])! + 20} y2={BOT_Y}
+              stroke="#94a3b8" strokeWidth="2" />
 
-            {/* Source to ground connection */}
-            <line x1={SOURCE_X} y1={MAIN_Y + 18} x2={SOURCE_X} y2={BOT_Y}
-              stroke="currentColor" strokeWidth="2.5" className="text-foreground/70" />
+            {/* Source to ground */}
+            <line x1={SOURCE_X} y1={MAIN_Y + 16} x2={SOURCE_X} y2={BOT_Y}
+              stroke="#94a3b8" strokeWidth="2" />
 
-            {/* --- 2. Draw Shunt Components (to ground) --- */}
-            {shuntComponents.map((comp, idx) => {
-              const signalNode = comp.node_a === 0 ? comp.node_b : comp.node_a;
-              const x = nodeX.get(signalNode)!;
-              const cy = (MAIN_Y + BOT_Y) / 2;
-
+            {/* ── Shunt components (to ground) ── */}
+            {shuntGroups.map((group, gi) => {
+              const x = nodeX.get(group.node)!;
               return (
-                <g key={`shunt-${idx}`}>
-                  {/* Vertical wires */}
-                  <line x1={x} y1={MAIN_Y} x2={x} y2={cy - 25} stroke="currentColor" strokeWidth="2.5" className="text-foreground/70" />
-                  <line x1={x} y1={cy + 25} x2={x} y2={BOT_Y} stroke="currentColor" strokeWidth="2.5" className="text-foreground/70" />
-                  {/* Component */}
-                  <g transform={`translate(${x}, ${cy}) rotate(90)`}>
-                    <g className="text-blue-500 dark:text-blue-400 stroke-[2.5px]">
-                      {SYMBOLS[comp.type as 'R' | 'L' | 'C']}
-                    </g>
-                  </g>
-                  {/* Label */}
-                  <text x={x + 30} y={cy + 4} className="text-[11px] font-bold font-mono fill-blue-600 dark:fill-blue-400">{comp.formatted_value}</text>
+                <g key={`shunt-${gi}`}>
+                  {renderParallelGroup(group.comps, x, MAIN_Y, x, BOT_Y, '#3b82f6', 'right')}
                 </g>
               );
             })}
 
-            {/* --- 3. Draw Main Path Components (between adjacent nodes) --- */}
-            {mainPathComps.map((comp, idx) => {
-              const xA = nodeX.get(comp.node_a)!;
-              const xB = nodeX.get(comp.node_b)!;
+            {/* ── Series components (main path, adjacent nodes) ── */}
+            {seriesGroups.map((group, gi) => {
+              const xA = nodeX.get(group.nodeA)!;
+              const xB = nodeX.get(group.nodeB)!;
+              return (
+                <g key={`series-${gi}`}>
+                  {renderParallelGroup(group.comps, xA, MAIN_Y, xB, MAIN_Y, '#f97316', 'top')}
+                </g>
+              );
+            })}
+
+            {/* ── Bypass components (skip connections) ── */}
+            {bypassGroups.map((group, gi) => {
+              const xA = nodeX.get(group.nodeA)!;
+              const xB = nodeX.get(group.nodeB)!;
+              const level = bypassLevels.get(pairKey(group.nodeA, group.nodeB)) || 1;
+              const arcY = MAIN_Y - 45 - (level - 1) * 55;
               const cx = (xA + xB) / 2;
 
-              return (
-                <g key={`main-${idx}`}>
-                  <g transform={`translate(${cx}, ${MAIN_Y})`}>
-                    <g className="text-orange-500 dark:text-orange-400 stroke-[2.5px]">
-                      {SYMBOLS[comp.type as 'R' | 'L' | 'C']}
-                    </g>
+              if (group.comps.length === 1) {
+                const comp = group.comps[0];
+                const color = COMP_COLORS[comp.type] || '#888';
+                return (
+                  <g key={`bypass-${gi}`}>
+                    <path d={`M ${xA} ${MAIN_Y} C ${xA} ${arcY}, ${xA + 30} ${arcY}, ${cx - 20} ${arcY}`}
+                      fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                    <path d={`M ${cx + 20} ${arcY} C ${xB - 30} ${arcY}, ${xB} ${arcY}, ${xB} ${MAIN_Y}`}
+                      fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                    {renderComp(comp, cx, arcY, false, 'top')}
                   </g>
-                  {/* Label above */}
-                  <text x={cx} y={MAIN_Y - 20} textAnchor="middle" className="text-[11px] font-bold font-mono fill-orange-600 dark:fill-orange-400">{comp.formatted_value}</text>
+                );
+              }
+
+              // Multiple bypass — stack vertically
+              return (
+                <g key={`bypass-${gi}`}>
+                  {group.comps.map((comp, ci) => {
+                    const ay = arcY - ci * 40;
+                    const color = COMP_COLORS[comp.type] || '#888';
+                    return (
+                      <g key={ci}>
+                        <path d={`M ${xA} ${MAIN_Y} C ${xA} ${ay}, ${xA + 30} ${ay}, ${cx - 20} ${ay}`}
+                          fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                        <path d={`M ${cx + 20} ${ay} C ${xB - 30} ${ay}, ${xB} ${ay}, ${xB} ${MAIN_Y}`}
+                          fill="none" stroke="#94a3b8" strokeWidth="1.5" />
+                        {renderComp(comp, cx, ay, false, 'top')}
+                      </g>
+                    );
+                  })}
                 </g>
               );
             })}
 
-            {/* --- 4. Draw Bypass Components (skip connections) --- */}
-            {bypassComps.map((comp, idx) => {
-              const xA = nodeX.get(comp.node_a)!;
-              const xB = nodeX.get(comp.node_b)!;
-              const level = bypassLevels.get(comp) || 1;
-              const arcY = MAIN_Y - 50 - (level - 1) * 45;  // Stack arcs at different heights
-              const cx = (xA + xB) / 2;
-
-              return (
-                <g key={`bypass-${idx}`}>
-                  {/* Arc wires using bezier curves */}
-                  <path
-                    d={`M ${xA} ${MAIN_Y}
-                        C ${xA} ${arcY}, ${xA + 30} ${arcY}, ${cx - 25} ${arcY}`}
-                    fill="none" stroke="currentColor" strokeWidth="2" className="text-foreground/50"
-                  />
-                  <path
-                    d={`M ${cx + 25} ${arcY}
-                        C ${xB - 30} ${arcY}, ${xB} ${arcY}, ${xB} ${MAIN_Y}`}
-                    fill="none" stroke="currentColor" strokeWidth="2" className="text-foreground/50"
-                  />
-                  {/* Component */}
-                  <g transform={`translate(${cx}, ${arcY})`}>
-                    <g className="text-green-600 dark:text-green-400 stroke-[2.5px]">
-                      {SYMBOLS[comp.type as 'R' | 'L' | 'C']}
-                    </g>
-                  </g>
-                  {/* Label */}
-                  <text x={cx} y={arcY - 15} textAnchor="middle" className="text-[11px] font-bold font-mono fill-green-600 dark:fill-green-400">{comp.formatted_value}</text>
-                </g>
-              );
-            })}
-
-            {/* --- 5. Draw Nodes --- */}
+            {/* ── Nodes ── */}
             {signalNodes.map((n) => (
               <g key={n} transform={`translate(${nodeX.get(n)}, ${MAIN_Y})`}>
-                <circle r="5" className="fill-background stroke-[2.5px] stroke-foreground" />
-                <text y={25} textAnchor="middle" className="text-[10px] font-bold fill-muted-foreground">N{n}</text>
+                <circle r="4" fill="white" stroke="#475569" strokeWidth="2" />
+                <text y="22" textAnchor="middle" className="text-[9px] font-semibold" fill="#94a3b8">N{n}</text>
               </g>
             ))}
 
-            {/* Ground Symbol */}
-            <g transform={`translate(${nodeX.get(signalNodes[signalNodes.length - 1])! + 40}, ${BOT_Y})`}>
-              <line x1="0" y1="0" x2="0" y2="8" stroke="currentColor" strokeWidth="2.5" className="text-foreground/70" />
-              <line x1="-12" y1="8" x2="12" y2="8" stroke="currentColor" strokeWidth="2.5" className="text-foreground/70" />
-              <line x1="-7" y1="13" x2="7" y2="13" stroke="currentColor" strokeWidth="2" className="text-foreground/70" />
-              <line x1="-3" y1="18" x2="3" y2="18" stroke="currentColor" strokeWidth="1.5" className="text-foreground/70" />
+            {/* Ground symbol */}
+            <g transform={`translate(${nodeX.get(signalNodes[signalNodes.length - 1])! + 20}, ${BOT_Y})`}>
+              <line x1="0" y1="0" x2="0" y2="7" stroke="#94a3b8" strokeWidth="2" />
+              <line x1="-10" y1="7" x2="10" y2="7" stroke="#94a3b8" strokeWidth="2" />
+              <line x1="-6" y1="12" x2="6" y2="12" stroke="#94a3b8" strokeWidth="1.5" />
+              <line x1="-2" y1="17" x2="2" y2="17" stroke="#94a3b8" strokeWidth="1" />
             </g>
           </g>
         </svg>
       </div>
 
-      {/* Net list */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* Component list */}
+      <div className="flex flex-wrap gap-2">
         {components.map((comp, idx) => (
-          <div key={idx} className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card/40 shadow-sm">
-            <div className="font-black text-lg text-primary">{comp.type}</div>
-            <div className="text-sm font-mono">{comp.formatted_value}</div>
+          <div key={idx} className={`chip-${comp.type.toLowerCase()}`}>
+            <span className="font-bold">{comp.type}</span>
+            <span className="font-mono text-[11px]">{comp.formatted_value}</span>
+            <span className="text-[9px] opacity-60">N{comp.node_a}-N{comp.node_b}</span>
           </div>
         ))}
       </div>

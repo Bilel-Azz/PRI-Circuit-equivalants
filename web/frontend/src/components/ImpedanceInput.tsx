@@ -8,137 +8,117 @@ interface ImpedanceInputProps {
   loading?: boolean;
 }
 
-// Sample impedance curves for testing - realistic circuit examples
 const SAMPLE_CURVES = [
   {
-    name: 'Filtre RC Passe-Bas',
-    desc: 'R=1kΩ + C=100nF (fc ≈ 1.6kHz)',
-    icon: '📉',
+    name: 'RLC Serie Resonant',
+    desc: 'R=100Ω + L=1mH + C=100nF',
     generate: (freqs: number[]) => {
-      const R = 1000;
-      const C = 100e-9;
+      const R = 100, L = 1e-3, C = 100e-9;
       return freqs.map((f) => {
-        const omega = 2 * Math.PI * f;
-        const Zc = 1 / (omega * C);
-        const Zreal = R;
-        const Zimag = -Zc;
-        const Zmag = Math.sqrt(Zreal * Zreal + Zimag * Zimag);
-        const Zphase = Math.atan2(Zimag, Zreal);
-        return { magnitude: Math.log10(Zmag), phase: Zphase };
+        const w = 2 * Math.PI * f;
+        const Zr = R, Zi = w * L - 1 / (w * C);
+        return { magnitude: Math.log10(Math.sqrt(Zr * Zr + Zi * Zi)), phase: Math.atan2(Zi, Zr) };
       });
     },
   },
   {
-    name: 'Circuit RLC Resonant',
-    desc: 'R=50Ω + L=1mH + C=100nF (f0 ≈ 16kHz)',
-    icon: '📊',
+    name: 'Tank LC Anti-Resonant',
+    desc: 'R=50Ω + (L=10mH ∥ C=1µF)',
     generate: (freqs: number[]) => {
-      const R = 50;
-      const L = 1e-3;
-      const C = 100e-9;
+      const Rs = 50, Rp = 10, L = 10e-3, C = 1e-6;
       return freqs.map((f) => {
-        const omega = 2 * Math.PI * f;
-        const Zl = omega * L;
-        const Zc = 1 / (omega * C);
-        const Zreal = R;
-        const Zimag = Zl - Zc;
-        const Zmag = Math.sqrt(Zreal * Zreal + Zimag * Zimag);
-        const Zphase = Math.atan2(Zimag, Zreal);
-        return { magnitude: Math.log10(Zmag), phase: Zphase };
+        const w = 2 * Math.PI * f;
+        const Zl = w * L, Zl2 = Rp * Rp + Zl * Zl;
+        const Yr = Rp / Zl2, Yi = -Zl / Zl2 + w * C;
+        const Ym = Yr * Yr + Yi * Yi;
+        const Zr = Rs + Yr / Ym, Zi = -Yi / Ym;
+        return { magnitude: Math.log10(Math.sqrt(Zr * Zr + Zi * Zi)), phase: Math.atan2(Zi, Zr) };
       });
     },
   },
   {
-    name: 'Tank LC Parallèle',
-    desc: 'L=10mH || C=1µF (anti-résonance)',
-    icon: '📈',
+    name: 'RLC + RL Parallèle',
+    desc: 'R=50Ω + L=10mH + C=1µF + RL shunt',
     generate: (freqs: number[]) => {
-      const R = 10; // Small ESR
-      const L = 10e-3;
-      const C = 1e-6;
+      const Rs = 50, L1 = 10e-3, C1 = 1e-6, R2 = 200, L2 = 5e-3;
       return freqs.map((f) => {
-        const omega = 2 * Math.PI * f;
-        const Zl = omega * L;
-        const Zc = 1 / (omega * C);
-        // Parallel LC with series R on L branch
-        const Yl_real = R / (R * R + Zl * Zl);
-        const Yl_imag = -Zl / (R * R + Zl * Zl);
-        const Yc_real = 0;
-        const Yc_imag = omega * C;
-        const Y_real = Yl_real + Yc_real;
-        const Y_imag = Yl_imag + Yc_imag;
-        const Ymag = Math.sqrt(Y_real * Y_real + Y_imag * Y_imag);
-        const Zmag = 1 / Ymag;
-        const Zphase = -Math.atan2(Y_imag, Y_real);
-        return { magnitude: Math.log10(Zmag), phase: Zphase };
+        const w = 2 * Math.PI * f;
+        const Zsr = Rs, Zsi = w * L1 - 1 / (w * C1);
+        const Yr = 1 / R2, Yi = -1 / (w * L2);
+        const Ym = Yr * Yr + Yi * Yi;
+        const Zpr = Yr / Ym, Zpi = -Yi / Ym;
+        const Zr = Zsr + Zpr, Zi = Zsi + Zpi;
+        return { magnitude: Math.log10(Math.sqrt(Zr * Zr + Zi * Zi)), phase: Math.atan2(Zi, Zr) };
       });
     },
   },
   {
-    name: 'Filtre RL Passe-Haut',
-    desc: 'R=470Ω + L=10mH (fc ≈ 7.5kHz)',
-    icon: '📶',
+    name: 'Double Resonance',
+    desc: '2 branches LC asymétriques (3 features visibles)',
     generate: (freqs: number[]) => {
-      const R = 470;
-      const L = 10e-3;
+      // Asymmetric double resonance: R + (branch1 || branch2)
+      // Branch 1: L1+C1 series (broad, f1~390Hz, Q~4)
+      // Branch 2: L2+C2 series (narrow, f2~50kHz, Q~18)
+      const R = 4.5, L1 = 1.707e-3, C1 = 9.706e-5, L2 = 5.613e-5, C2 = 1.792e-7;
       return freqs.map((f) => {
-        const omega = 2 * Math.PI * f;
-        const Zl = omega * L;
-        const Zreal = R;
-        const Zimag = Zl;
-        const Zmag = Math.sqrt(Zreal * Zreal + Zimag * Zimag);
-        const Zphase = Math.atan2(Zimag, Zreal);
-        return { magnitude: Math.log10(Zmag), phase: Zphase };
+        const w = 2 * Math.PI * f;
+        // Branch impedances (series LC each)
+        const Z1r = 0, Z1i = w * L1 - 1 / (w * C1);
+        const Z2r = 0, Z2i = w * L2 - 1 / (w * C2);
+        // Parallel combination: Zp = Z1*Z2 / (Z1+Z2) (both purely imaginary)
+        const sumI = Z1i + Z2i;
+        const prodI = Z1i * Z2i;
+        // Zp = (j*Z1i * j*Z2i) / (j*(Z1i+Z2i)) = j * (-Z1i*Z2i) / (Z1i+Z2i) = -prodI/sumI (imaginary)
+        const ZpI = -prodI / sumI;
+        const Zr = R, Zi = ZpI;
+        return { magnitude: Math.log10(Math.sqrt(Zr * Zr + Zi * Zi)), phase: Math.atan2(Zi, Zr) };
       });
     },
   },
   {
-    name: 'Réseau RC Parallèle',
-    desc: 'R=1kΩ || C=1µF',
-    icon: '🔌',
+    name: 'Ladder RLC 3 stages',
+    desc: 'R-L-C-R-L-C',
     generate: (freqs: number[]) => {
-      const R = 1000;
-      const C = 1e-6;
+      const R1 = 100, R2 = 200, L1 = 1e-3, L2 = 2e-3, C1 = 100e-9, C2 = 220e-9;
       return freqs.map((f) => {
-        const omega = 2 * Math.PI * f;
-        const Yc = omega * C;
-        const Yr = 1 / R;
-        const Ymag = Math.sqrt(Yr * Yr + Yc * Yc);
-        const Zmag = 1 / Ymag;
-        const Zphase = -Math.atan2(Yc, Yr);
-        return { magnitude: Math.log10(Zmag), phase: Zphase };
+        const w = 2 * Math.PI * f;
+        const Z2r = R2, Z2i = w * L2 - 1 / (w * C2);
+        const Z2m = Z2r * Z2r + Z2i * Z2i;
+        const Ypr = Z2r / Z2m, Ypi = -Z2i / Z2m + w * C1;
+        const Ypm = Ypr * Ypr + Ypi * Ypi;
+        const Zr = R1 + Ypr / Ypm, Zi = w * L1 - Ypi / Ypm;
+        return { magnitude: Math.log10(Math.sqrt(Zr * Zr + Zi * Zi)), phase: Math.atan2(Zi, Zr) };
       });
     },
   },
   {
-    name: 'Ladder RC 2 étages',
-    desc: 'R1=1kΩ-C1=100nF-R2=1kΩ-C2=100nF',
-    icon: '🪜',
+    name: 'Notch Filter',
+    desc: 'R + LC parallele (5kHz)',
     generate: (freqs: number[]) => {
-      const R1 = 1000, R2 = 1000;
-      const C1 = 100e-9, C2 = 100e-9;
+      const Rs = 100, L = 10e-3, C = 100e-9;
       return freqs.map((f) => {
-        const omega = 2 * Math.PI * f;
-        // Z2 = R2 + 1/jwC2
-        const Z2_real = R2;
-        const Z2_imag = -1 / (omega * C2);
-        // Z1_shunt = 1/jwC1
-        const Zc1_imag = -1 / (omega * C1);
-        // Z1_shunt || Z2 then + R1
-        // Y_parallel = jwC1 + 1/Z2
-        const Y2_real = Z2_real / (Z2_real * Z2_real + Z2_imag * Z2_imag);
-        const Y2_imag = -Z2_imag / (Z2_real * Z2_real + Z2_imag * Z2_imag);
-        const Yp_real = Y2_real;
-        const Yp_imag = Y2_imag + omega * C1;
-        const Yp_mag = Math.sqrt(Yp_real * Yp_real + Yp_imag * Yp_imag);
-        const Zp_real = Yp_real / (Yp_mag * Yp_mag);
-        const Zp_imag = -Yp_imag / (Yp_mag * Yp_mag);
-        // Total = R1 + Zp
-        const Zt_real = R1 + Zp_real;
-        const Zt_imag = Zp_imag;
-        const Zmag = Math.sqrt(Zt_real * Zt_real + Zt_imag * Zt_imag);
-        const Zphase = Math.atan2(Zt_imag, Zt_real);
-        return { magnitude: Math.log10(Zmag), phase: Zphase };
+        const w = 2 * Math.PI * f;
+        const Yi = -1 / (w * L) + w * C;
+        const Ym = Math.abs(Yi);
+        const Zp = Ym > 1e-10 ? 1 / Ym : 1e10;
+        const Zpp = Yi > 0 ? -Math.PI / 2 : Math.PI / 2;
+        const Zr = Rs + Zp * Math.cos(Zpp), Zi = Zp * Math.sin(Zpp);
+        return { magnitude: Math.log10(Math.sqrt(Zr * Zr + Zi * Zi)), phase: Math.atan2(Zi, Zr) };
+      });
+    },
+  },
+  {
+    name: 'Circuit 5 Components',
+    desc: 'R1-L1-C1 + R2∥C2 shunt',
+    generate: (freqs: number[]) => {
+      const R1 = 150, R2 = 1000, L1 = 3e-3, C1 = 150e-9, C2 = 470e-9;
+      return freqs.map((f) => {
+        const w = 2 * Math.PI * f;
+        const Yr2 = 1 / R2, Yc2 = w * C2;
+        const Ym = Yr2 * Yr2 + Yc2 * Yc2;
+        const Zsr = Yr2 / Ym, Zsi = -Yc2 / Ym;
+        const Zr = R1 + Zsr, Zi = w * L1 - 1 / (w * C1) + Zsi;
+        return { magnitude: Math.log10(Math.sqrt(Zr * Zr + Zi * Zi)), phase: Math.atan2(Zi, Zr) };
       });
     },
   },
@@ -153,163 +133,109 @@ export default function ImpedanceInput({ onSubmit, loading }: ImpedanceInputProp
   const [inputMode, setInputMode] = useState<'sample' | 'manual'>('sample');
 
   useEffect(() => {
-    getConfig()
-      .then(setConfig)
-      .catch((err) => console.error('Failed to load config:', err));
+    getConfig().then(setConfig).catch(() => {});
   }, []);
 
   const handleSampleSelect = (idx: number) => {
     if (!config) return;
     setSelectedSample(idx);
-
-    const sample = SAMPLE_CURVES[idx];
-    const data = sample.generate(config.frequencies);
-    setMagnitude(data.map((d) => d.magnitude));
-    setPhase(data.map((d) => d.phase));
+    const data = SAMPLE_CURVES[idx].generate(config.frequencies);
+    setMagnitude(data.map(d => d.magnitude));
+    setPhase(data.map(d => d.phase));
   };
 
   const handleManualSubmit = () => {
     try {
       const data = JSON.parse(manualInput);
-      if (!data.magnitude || !data.phase) {
-        alert('JSON must have "magnitude" and "phase" arrays');
-        return;
-      }
-      if (data.magnitude.length !== config?.num_freq || data.phase.length !== config?.num_freq) {
-        alert(`Arrays must have ${config?.num_freq} elements`);
-        return;
-      }
+      if (!data.magnitude || !data.phase) { alert('Need "magnitude" and "phase" arrays'); return; }
+      if (data.magnitude.length !== config?.num_freq) { alert(`Need ${config?.num_freq} points`); return; }
       setMagnitude(data.magnitude);
       setPhase(data.phase);
-    } catch {
-      alert('Invalid JSON');
-    }
+    } catch { alert('Invalid JSON'); }
   };
 
   const handleGenerate = () => {
-    if (magnitude.length === 0 || phase.length === 0) {
-      alert('Please select or input impedance data first');
-      return;
-    }
+    if (magnitude.length === 0) { alert('Select or input impedance data first'); return; }
     onSubmit(magnitude, phase);
   };
 
   if (!config) {
-    return (
-      <div className="p-4 bg-secondary/50 rounded-lg animate-pulse flex flex-col gap-2">
-        <div className="h-4 bg-muted/20 rounded w-3/4"></div>
-        <div className="h-4 bg-muted/20 rounded w-1/2"></div>
-      </div>
-    );
+    return <div className="animate-pulse space-y-2"><div className="h-3 bg-zinc-100 rounded w-3/4" /><div className="h-3 bg-zinc-100 rounded w-1/2" /></div>;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Mode Selection */}
-      <div className="grid grid-cols-2 p-1 bg-secondary rounded-xl">
-        <button
-          onClick={() => setInputMode('sample')}
-          className={`py-2 text-sm font-medium rounded-lg transition-all ${inputMode === 'sample'
-              ? 'bg-white text-primary shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-            }`}
-        >
-          Sample Curves
-        </button>
-        <button
-          onClick={() => setInputMode('manual')}
-          className={`py-2 text-sm font-medium rounded-lg transition-all ${inputMode === 'manual'
-              ? 'bg-white text-primary shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
-            }`}
-        >
-          JSON Input
-        </button>
+    <div className="space-y-4">
+      {/* Mode tabs */}
+      <div className="grid grid-cols-2 p-0.5 bg-zinc-100 rounded-lg">
+        {(['sample', 'manual'] as const).map(mode => (
+          <button key={mode} onClick={() => setInputMode(mode)}
+            className={`py-1.5 text-xs font-medium rounded-md transition-all ${
+              inputMode === mode ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
+            }`}>
+            {mode === 'sample' ? 'Samples' : 'JSON'}
+          </button>
+        ))}
       </div>
 
-      {/* Sample Selection */}
+      {/* Samples */}
       {inputMode === 'sample' && (
-        <div className="space-y-3 animate-in fade-in duration-300">
-          <div className="grid grid-cols-1 gap-2 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar">
-            {SAMPLE_CURVES.map((sample, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleSampleSelect(idx)}
-                className={`p-3 text-left rounded-xl border transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center gap-3 ${selectedSample === idx
-                    ? 'border-primary bg-primary/10 ring-1 ring-primary/30 shadow-sm'
-                    : 'border-transparent bg-secondary/50 hover:bg-secondary'
-                  }`}
-              >
-                <span className="text-xl">{sample.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-foreground text-sm">{sample.name}</div>
-                  <div className="text-[10px] text-muted-foreground truncate">{sample.desc}</div>
-                </div>
-                {selectedSample === idx && (
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                )}
-              </button>
-            ))}
-          </div>
+        <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-1">
+          {SAMPLE_CURVES.map((sample, idx) => (
+            <button key={idx} onClick={() => handleSampleSelect(idx)}
+              className={`w-full p-2.5 text-left rounded-lg border transition-all ${
+                selectedSample === idx
+                  ? 'border-zinc-300 bg-zinc-50 ring-1 ring-zinc-200'
+                  : 'border-transparent bg-zinc-50/50 hover:bg-zinc-100'
+              }`}>
+              <div className="text-xs font-medium text-zinc-800">{sample.name}</div>
+              <div className="text-[10px] text-zinc-400 mt-0.5">{sample.desc}</div>
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Manual Input */}
+      {/* Manual JSON */}
       {inputMode === 'manual' && (
-        <div className="space-y-3 animate-in fade-in duration-300">
-          <textarea
-            value={manualInput}
-            onChange={(e) => setManualInput(e.target.value)}
-            placeholder={`{\n  "magnitude": [...],\n  "phase": [...]\n}\n// details: ${config.num_freq} points`}
-            className="w-full h-40 p-3 bg-secondary/30 border border-input rounded-xl font-mono text-xs focus:ring-2 focus:ring-primary focus:border-transparent outline-none resize-none"
-          />
-          <button
-            onClick={handleManualSubmit}
-            className="w-full py-2 bg-secondary hover:bg-secondary/80 text-foreground font-medium rounded-lg text-xs border border-border"
-          >
-            Parse JSON Data
+        <div className="space-y-2">
+          <textarea value={manualInput} onChange={(e) => setManualInput(e.target.value)}
+            placeholder={`{"magnitude": [...], "phase": [...]}\n// ${config.num_freq} points`}
+            className="w-full h-32 p-3 bg-zinc-50 border border-zinc-200 rounded-lg font-mono text-xs focus:ring-2 focus:ring-zinc-300 focus:border-transparent outline-none resize-none" />
+          <button onClick={handleManualSubmit}
+            className="w-full py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium rounded-lg text-xs border border-zinc-200 transition-colors">
+            Parse JSON
           </button>
         </div>
       )}
 
-      {/* Data Preview */}
+      {/* Data status */}
       {magnitude.length > 0 && (
-        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-xl flex justify-between items-center">
+        <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex justify-between items-center">
           <div>
-            <p className="text-xs font-bold text-green-700 dark:text-green-400">
-              Data Loaded Successfully
-            </p>
-            <p className="text-[10px] text-green-600/80 dark:text-green-500/80 font-mono mt-0.5">
-              {magnitude.length} points • Range: [{Math.min(...magnitude).toFixed(1)}, {Math.max(...magnitude).toFixed(1)}]
-            </p>
+            <p className="text-[11px] font-semibold text-emerald-700">Data loaded</p>
+            <p className="text-[10px] text-emerald-500 font-mono">{magnitude.length} pts [{Math.min(...magnitude).toFixed(1)}, {Math.max(...magnitude).toFixed(1)}]</p>
           </div>
-          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
+          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
         </div>
       )}
 
-      {/* Generate Button */}
-      <button
-        onClick={handleGenerate}
-        disabled={loading || magnitude.length === 0}
-        className={`w-full py-3.5 rounded-xl font-bold text-sm uppercase tracking-wide transition-all transform shadow-lg ${loading || magnitude.length === 0
-            ? 'bg-muted text-muted-foreground cursor-not-allowed shadow-none'
-            : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:-translate-y-0.5 shadow-primary/25'
-          }`}
-      >
+      {/* Generate */}
+      <button onClick={handleGenerate} disabled={loading || magnitude.length === 0}
+        className={`w-full py-3 rounded-lg font-medium text-sm transition-all ${
+          loading || magnitude.length === 0
+            ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
+            : 'bg-zinc-900 text-white hover:bg-zinc-800'
+        }`}>
         {loading ? (
           <span className="flex items-center justify-center gap-2">
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             Generating...
           </span>
-        ) : (
-          'Generate Circuit'
-        )}
+        ) : 'Generate Circuit'}
       </button>
 
-      {/* Info */}
-      <div className="text-[10px] text-center text-muted-foreground font-mono">
-        Range: {config.freq_min.toExponential(0)} - {config.freq_max.toExponential(0)} Hz
-      </div>
+      <p className="text-[10px] text-center text-zinc-400 font-mono">
+        {config.freq_min.toExponential(0)}&ndash;{config.freq_max.toExponential(0)} Hz
+      </p>
     </div>
   );
 }

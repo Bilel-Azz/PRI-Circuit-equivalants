@@ -17,8 +17,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans min-h-screen bg-background text-foreground`}>
-        <div className="fixed inset-0 scientific-grid opacity-30 pointer-events-none -z-10" />
+      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans min-h-screen`}>
         {children}
       </body>
     </html>
