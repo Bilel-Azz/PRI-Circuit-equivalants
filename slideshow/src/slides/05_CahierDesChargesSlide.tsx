@@ -14,8 +14,6 @@ const exigencesOriginales = [
 const ajoutsPerso = [
   { id: "EF5", text: "API backend pour l'inférence (FastAPI)", prio: "ADDED" },
   { id: "EF6", text: "Interface web de visualisation (Next.js)", prio: "ADDED" },
-  { id: "EF7", text: "Stratégie Best-of-N pour améliorer les prédictions", prio: "ADDED" },
-  { id: "EF8", text: "Réparation automatique de circuits invalides", prio: "ADDED" },
 ];
 
 const prioColors: Record<string, string> = {
@@ -105,8 +103,6 @@ export default function CahierDesChargesSlide() {
             <div className="text-sm font-mono mb-3" style={{ color: colors.yellow }}>Contraintes</div>
             <div className="flex flex-col gap-2 text-sm" style={{ color: colors.grayLight }}>
               <div>• 100% données synthétiques</div>
-              <div>• Max 6 composants / circuit</div>
-              <div>• 4 nœuds (GND, IN, 2 internes)</div>
               <div>• Durée : 5 mois</div>
             </div>
           </motion.div>

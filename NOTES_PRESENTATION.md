@@ -150,13 +150,14 @@
 
 **Mots-clés** : suivi mensuel, sévérité, mitigation
 
-- **5 risques suivis** (sévérité 1-10 par mois) :
-  - R1 : Instabilité numérique solver — 8→1 (résolu via vectorisation)
-  - R2 : Complexité représentation — 9→2 (résolu via tokens séquentiels)
-  - R3 : Communication encadrants — 9→2 (rattrapé)
-  - R4 : Overfitting — 3→3 (reste modéré, V6 a montré le risque)
-  - R5 : Circuits invalides — 7→1 (masking + réparation)
-- "Tous les risques critiques sont descendus sous 3 en fin de projet"
+### Script :
+"Ici j'ai identifié 5 risques principaux et suivi leur sévérité chaque mois sur une échelle de 1 à 10.
+
+- **R1 — Qualité des données** : Au début c'était pas un problème, mais en avançant on s'est rendu compte que les données générées n'étaient pas assez diversifiées. La sévérité monte en cours de projet (3→8) puis redescend un peu avec les templates.
+- **R2 — Communication encadrants** : C'est un risque qui est resté élevé tout le long. J'ai peu communiqué avec mes encadrants, surtout pendant la pause. C'est un point à améliorer.
+- **R3 — Overfitting** : Risque faible au début, mais qui augmente quand on pousse le modèle (V6 a divergé à l'epoch 15). Maîtrisé grâce à l'early stopping.
+- **R4 — Représentation** : Risque très élevé au début (comment encoder un circuit pour un réseau de neurones ?), résolu avec les tokens séquentiels.
+- **R5 — Délai après la pause** : Risque maximal en Nov-Déc pendant l'arrêt, puis progressivement résorbé grâce au rattrapage intensif."
 
 ---
 
@@ -164,10 +165,14 @@
 
 **Mots-clés** : charge de travail, avancement, écart
 
-- **~200h réalisées** vs 120h prévues → **+67% d'écart charge**
-- **100% avancement** — projet livré
-- **Graphiques** : avancement quasi plat Nov-Déc puis explosion Jan-Fév
-- "L'écart de charge s'explique par la pause et le rattrapage intensif qui a suivi"
+### Script :
+"Voici les indicateurs SPER du projet.
+
+- **~160h réalisées** vs 120h prévues, soit un **écart de +33%**. Cet écart s'explique par la pause qui a décalé tout le planning, et le rattrapage intensif qui a suivi.
+- **Avancement à 100%** — le projet est livré avec toutes les exigences remplies.
+- **Courbe d'avancement** : quasi plate en Nov-Déc (la pause), puis explosion en Jan-Fév.
+- **Charge cumulée** : même profil — très peu d'heures pendant la pause, puis accumulation rapide.
+- **Retard accumulé** : monte pendant la pause (pic en décembre ~60h de retard), puis redescend progressivement jusqu'à 0 en février. Le retard a été entièrement résorbé."
 
 ---
 

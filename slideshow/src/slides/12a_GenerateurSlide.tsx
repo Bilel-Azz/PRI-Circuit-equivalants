@@ -13,13 +13,13 @@ const pipeline = [
 
 const problems = [
   {
-    icon: "🎲",
+    icon: "1",
     title: "Distribution non contrôlée",
     desc: "Impossible de garantir la diversité des courbes — 80% de courbes monotones, très peu de résonances",
     color: colors.orange,
   },
   {
-    icon: "⚡",
+    icon: "2",
     title: "Beaucoup de circuits invalides",
     desc: "Composants connectés au même nœud (self-loops), nœuds isolés — seulement 9% de circuits valides",
     color: colors.resistor,

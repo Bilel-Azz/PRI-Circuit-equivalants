@@ -15,7 +15,7 @@ const risks = [
 const months = ["Oct", "Nov", "Déc", "Jan", "Fév"];
 
 function MiniChart({ data, color, delay }: { data: number[]; color: string; delay: number }) {
-  const w = 120, h = 40;
+  const w = 500, h = 40;
   const maxVal = 10;
   const points = data.map((v, i) => ({
     x: (i / (data.length - 1)) * w,
@@ -24,7 +24,7 @@ function MiniChart({ data, color, delay }: { data: number[]; color: string; dela
   const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
 
   return (
-    <svg width={w} height={h + 5} viewBox={`0 0 ${w} ${h + 5}`}>
+    <svg width="100%" height={h + 5} viewBox={`0 0 ${w} ${h + 5}`} preserveAspectRatio="none">
       {/* Area fill */}
       <motion.path
         d={`${pathD} L${w},${h} L0,${h} Z`}

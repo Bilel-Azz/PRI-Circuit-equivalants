@@ -67,8 +67,8 @@ export default function SperSlide() {
       {/* KPI Cards */}
       <motion.div className="flex gap-5 mb-10" variants={staggerContainer}>
         {[
-          { value: "~200h", label: "Réalisées", sub: "vs 120h prévues", color: colors.blue },
-          { value: "+67%", label: "Écart charge", sub: "rattrapage intense", color: colors.orange },
+          { value: "~160h", label: "Réalisées", sub: "vs 120h prévues", color: colors.blue },
+          { value: "+33%", label: "Écart charge", sub: "rattrapage intense", color: colors.orange },
           { value: "100%", label: "Avancement", sub: "projet livré", color: colors.green },
         ].map((kpi) => (
           <motion.div key={kpi.label} variants={scaleIn}
@@ -95,21 +95,21 @@ export default function SperSlide() {
         <motion.div variants={fadeUp}
           className="p-4 rounded-xl border" style={{ borderColor: colors.border, background: `${colors.bgCard}cc` }}>
           <AnimatedChart
-            data={[10, 25, 25, 120, 200]}
+            data={[10, 20, 20, 100, 160]}
             color={colors.blue}
             label="Charge cumulée (h)"
             delay={0.9}
-            maxY={200}
+            maxY={160}
           />
         </motion.div>
         <motion.div variants={fadeUp}
           className="p-4 rounded-xl border" style={{ borderColor: colors.border, background: `${colors.bgCard}cc` }}>
           <AnimatedChart
-            data={[0, 15, 80, 50, 0]}
+            data={[0, 10, 60, 30, 0]}
             color={colors.orange}
             label="Retard accumulé (h)"
             delay={1.2}
-            maxY={100}
+            maxY={80}
           />
         </motion.div>
       </div>
