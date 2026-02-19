@@ -7,38 +7,39 @@ import { colors } from "@/lib/theme";
 const phases = [
   {
     num: "1",
-    label: "Exploration",
-    desc: "Recherche biblio, choix d'architecture (CNN vs MLP, Transformer vs RNN), premiers prototypes",
+    label: "Exploration & premiers prototypes",
+    desc: "Recherche biblio, choix d'architecture (CNN + Transformer), premières expérimentations, pipeline de données",
     color: colors.blue,
-    weeks: "S1-S4",
+    period: "Oct",
+  },
+  {
+    num: "⏸",
+    label: "Pause — problèmes personnels",
+    desc: "Arrêt du projet pendant environ 6 semaines",
+    color: colors.resistor,
+    period: "Nov — 20 déc",
+    isGap: true,
   },
   {
     num: "2",
-    label: "Premier modèle fonctionnel",
-    desc: "Dataset V1-V3, modèle V1-V4, validation sur circuits simples, identification des self-loops",
-    color: colors.cyan,
-    weeks: "S5-S8",
+    label: "Pivot & modèles V1→V5",
+    desc: "Reprise intensive, datasets V1-V3, decoder contraint (0% self-loops), modèle V5 = 99.8% type accuracy",
+    color: colors.green,
+    period: "20 déc — mi-jan",
   },
   {
     num: "3",
-    label: "Itérations & expérimentations",
-    desc: "12 versions testées (V5-V12), REINFORCE, 6 canaux, classificateur — la plupart ont échoué",
+    label: "Expérimentations V8→V12",
+    desc: "REINFORCE, 6 canaux dérivées, classificateur — 5 versions testées, toutes inférieures à V5. Diagnostic : biais dataset",
     color: colors.orange,
-    weeks: "S9-S14",
+    period: "Jan — début fév",
   },
   {
     num: "4",
-    label: "Diagnostic & analyse",
-    desc: "Découverte du biais dataset (<15% de vraies doubles résonances), dataset V5 vérifié",
-    color: colors.resistor,
-    weeks: "S15-S16",
-  },
-  {
-    num: "5",
     label: "Intégration & déploiement",
-    desc: "Application web (FastAPI + Next.js), inférence Best-of-50, déploiement OVH + Vercel",
-    color: colors.green,
-    weeks: "S17-S20",
+    desc: "Application web (FastAPI + Next.js), inférence Best-of-50, déploiement OVH (GPU) + Vercel",
+    color: colors.cyan,
+    period: "Fév",
   },
 ];
 
@@ -76,7 +77,7 @@ export default function MethodologieSlide() {
 
         {phases.map((phase, i) => (
           <motion.div
-            key={phase.num}
+            key={phase.num + phase.label}
             className="flex items-start gap-4 relative"
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -85,17 +86,29 @@ export default function MethodologieSlide() {
             {/* Circle */}
             <div
               className="w-[44px] h-[44px] rounded-full flex items-center justify-center text-sm font-bold shrink-0 z-10"
-              style={{ background: `${phase.color}20`, color: phase.color, border: `2px solid ${phase.color}` }}
+              style={{
+                background: `${phase.color}20`,
+                color: phase.color,
+                border: `2px ${("isGap" in phase && phase.isGap) ? "dashed" : "solid"} ${phase.color}`,
+              }}
             >
               {phase.num}
             </div>
 
             {/* Content */}
-            <div className="flex-1 rounded-xl px-4 py-3 border" style={{ borderColor: `${phase.color}30`, background: `${phase.color}08` }}>
+            <div
+              className="flex-1 rounded-xl px-4 py-3 border"
+              style={{
+                borderColor: `${phase.color}30`,
+                background: `${phase.color}08`,
+                borderStyle: ("isGap" in phase && phase.isGap) ? "dashed" : "solid",
+                opacity: ("isGap" in phase && phase.isGap) ? 0.6 : 1,
+              }}
+            >
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold" style={{ color: phase.color }}>{phase.label}</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full" style={{ background: `${colors.bg}`, color: colors.gray }}>
-                  {phase.weeks}
+                  {phase.period}
                 </span>
               </div>
               <div className="text-xs mt-1" style={{ color: colors.grayLight }}>{phase.desc}</div>
