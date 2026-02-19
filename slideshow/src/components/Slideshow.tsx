@@ -22,6 +22,7 @@ import RisquesSlide from "@/slides/08_RisquesSlide";
 import SperSlide from "@/slides/09_SperSlide";
 import ExplorationsSlide from "@/slides/10_ExplorationsSlide";
 import GenerateurSlide from "@/slides/12a_GenerateurSlide";
+import PourquoiTemplatesSlide from "@/slides/12a2_PourquoiTemplatesSlide";
 import TopologiesSlide from "@/slides/12ab_TopologiesSlide";
 import RepresentationSlide from "@/slides/12b_RepresentationSlide";
 import RepresentationTokensSlide from "@/slides/12b2_RepresentationTokensSlide";
@@ -62,7 +63,8 @@ const slides = [
   // --- Section 03 : Réalisation technique ---
   Transition03,
   GenerateurSlide,          // ① Générateur random + problèmes
-  TopologiesSlide,          // ② Générateur templates
+  PourquoiTemplatesSlide,   // ② Pourquoi des templates
+  TopologiesSlide,          // ③ Les 5 topologies
   RepresentationSlide,      // ③ Représentation 1/2 (matrice → échec)
   RepresentationTokensSlide,// ④ Représentation 2/2 (tokens séquentiels)
   PipelineMNASlide,         // ⑤ Pipeline MNA
@@ -105,7 +107,8 @@ const slideLabels = [
   // 03
   "Réalisation",
   "Générateur random",
-  "Générateur templates",
+  "Pourquoi templates",
+  "Les 5 topologies",
   "Représentation 1/2",
   "Tokens séquentiels",
   "Pipeline MNA",
