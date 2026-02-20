@@ -234,19 +234,39 @@ export default function ImpedanceSlide() {
         </motion.div>
       </div>
 
-      {/* Bottom insight */}
+      {/* Formulas */}
       <motion.div
-        className="mt-6 px-6 py-3 rounded-xl border max-w-3xl"
-        style={{ borderColor: `${colors.yellow}30`, background: `${colors.yellow}08` }}
+        className="mt-5 flex gap-4 w-full max-w-5xl"
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 3 }}
+        transition={{ delay: 2.8 }}
       >
-        <div className="flex items-center gap-3">
-          <span className="text-lg">💡</span>
-          <span className="text-sm" style={{ color: colors.yellow }}>
-            {"Chaque circuit a une courbe unique — c'est son « empreinte digitale »"}
-          </span>
+        <div className="flex-1 px-5 py-3 rounded-xl border"
+          style={{ borderColor: `${colors.blue}25`, background: `${colors.blue}06` }}>
+          <div className="text-[10px] font-mono mb-1.5" style={{ color: colors.gray }}>{"Imp\u00e9dance complexe"}</div>
+          <div className="text-sm font-mono" style={{ color: colors.cyan }}>
+            {"Z(f) = R + j(\u03C9L \u2212 1/\u03C9C)"}
+          </div>
+          <div className="text-[10px] font-mono mt-1" style={{ color: colors.gray }}>
+            {"\u03C9 = 2\u03C0f"}
+          </div>
+        </div>
+        <div className="flex-1 px-5 py-3 rounded-xl border"
+          style={{ borderColor: `${colors.cyan}25`, background: `${colors.cyan}06` }}>
+          <div className="text-[10px] font-mono mb-1.5" style={{ color: colors.gray }}>Module</div>
+          <div className="text-sm font-mono" style={{ color: colors.cyan }}>
+            {"|Z(f)| = \u221A(R\u00B2 + (\u03C9L \u2212 1/\u03C9C)\u00B2)"}
+          </div>
+        </div>
+        <div className="flex-1 px-5 py-3 rounded-xl border"
+          style={{ borderColor: `${colors.yellow}25`, background: `${colors.yellow}06` }}>
+          <div className="text-[10px] font-mono mb-1.5" style={{ color: colors.gray }}>{"R\u00e9sonance (|Z| min)"}</div>
+          <div className="text-sm font-mono" style={{ color: colors.yellow }}>
+            {"f\u2080 = 1 / (2\u03C0\u221A(LC))"}
+          </div>
+          <div className="text-[10px] font-mono mt-1" style={{ color: colors.gray }}>
+            {"\u03C9L = 1/\u03C9C \u2192 Z = R"}
+          </div>
         </div>
       </motion.div>
     </motion.div>

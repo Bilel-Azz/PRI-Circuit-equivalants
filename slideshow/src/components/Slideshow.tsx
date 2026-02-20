@@ -79,12 +79,12 @@ const slides = [
   OptimisationsSlide,       // ⑭ Optimisations
   BackendSlide,             // ⑮ Backend
   FrontendSlide,            // ⑯ Frontend
+  DemoSlide,                // ⑰ Démo (avant bilan)
   // --- Section 04 : Bilan ---
   Transition04,
   ProblemesSlide,
   BilanSlide,
   AmeliorationsSlide,
-  DemoSlide,
   MerciSlide,
 ];
 
@@ -123,12 +123,12 @@ const slideLabels = [
   "Optimisations",
   "Backend",
   "Frontend",
+  "D\u00e9mo",
   // 04
   "Bilan & Conclusion",
   "Probl\u00e8mes",
   "Bilan",
   "Am\u00e9liorations",
-  "D\u00e9mo",
   "Merci",
 ];
 
@@ -137,8 +137,8 @@ const sectionColors = [
   { start: 0, end: 1, color: colors.blue },       // Intro
   { start: 2, end: 7, color: colors.blue },        // Transition01 + Contexte
   { start: 8, end: 12, color: colors.cyan },       // Transition02 + Gestion
-  { start: 13, end: 30, color: colors.green },     // Transition03 + Réalisation (+1 slide)
-  { start: 31, end: 36, color: colors.purple },    // Transition04 + Bilan
+  { start: 13, end: 31, color: colors.green },     // Transition03 + Réalisation + Démo
+  { start: 32, end: 36, color: colors.purple },    // Transition04 + Bilan
 ];
 
 function getDotColor(index: number, isCurrent: boolean): string {
