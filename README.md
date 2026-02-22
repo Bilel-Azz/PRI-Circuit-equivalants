@@ -1,86 +1,122 @@
-# Circuit Synthesis AI
+# Synthese de circuits equivalents par IA
 
-Synthèse automatique de circuits RLC à partir de courbes d'impédance Z(f) en utilisant le Deep Learning.
+Projet de Recherche et d'Innovation (PRI) — 5A ISIE, Polytech Tours, 2025-2026
 
-## Architecture
+**Auteur** : Bilel AAZZOUZ
+**Encadrants** : Frederic Rayar, Yannick Kergossien, Ismail Aouichak
+
+---
+
+## Le projet en une phrase
+
+A partir d'une courbe d'impedance Z(f), predire automatiquement le circuit electrique equivalent (composants R, L, C et connexions) grace au deep learning.
+
+## Structure du depot
 
 ```
 circuit_synthesis_ai/
-├── ml/                     # Code Machine Learning
-│   ├── data/               # Générateurs de circuits, solveur MNA
-│   ├── models/             # Encoder CNN + Decoder Transformer
-│   ├── training/           # Loss functions, GPU solver
-│   └── scripts/            # Entraînement et évaluation
-│
-├── web/                    # Application Web
-│   ├── frontend/           # Next.js React
-│   └── backend/            # FastAPI Python
-│
-├── visualizer/             # Outils de visualisation
-│
-├── docs/                   # Documentation
-│   ├── RAPPORT_PROJET.md   # Rapport complet
-│   ├── GENERATEUR.md       # Documentation du générateur
-│   └── soutenance/         # Questions de soutenance
-│
-└── outputs/                # Modèles et datasets (gitignore)
+├── ml/                  # Code machine learning (entrainement, donnees, modeles)
+├── web/                 # Application web (backend FastAPI + frontend Next.js)
+├── slideshow/           # Slides de soutenance (Next.js + Framer Motion)
+├── video/               # Video de presentation (Remotion)
+├── visualizer/          # Outils de visualisation de circuits
+├── livrables/           # Modele final + datasets (prets a l'emploi)
+└── docs/                # Rapport et documentation
 ```
 
-## Approche
+Chaque dossier contient son propre README avec les instructions de lancement.
 
-1. **Génération synthétique** : Créer des circuits RLC aléatoires avec topologies variées
-2. **Calcul d'impédance** : Utiliser MNA (Modified Nodal Analysis) pour calculer Z(f)
-3. **Entraînement supervisé** : Apprendre la relation inverse Z(f) → Circuit
+## Lancement rapide
 
-## Modèle
+### 1. Tester le modele via l'application web
 
-- **Encoder** : CNN 1D pour extraire les features de la courbe d'impédance
-- **Decoder** : Transformer autoregressif pour générer la séquence de composants
-- **Contraintes** : Masking pour empêcher les self-loops (node_a ≠ node_b)
+C'est la facon la plus simple de voir le projet en action :
 
-## Quick Start
+```bash
+# Terminal 1 : Backend
+cd web/backend
+pip install -r requirements.txt
+python main.py
+# -> http://localhost:8000
 
-### Entraînement
+# Terminal 2 : Frontend
+cd web/frontend
+npm install
+npm run dev
+# -> http://localhost:3000
+```
+
+Ouvrir http://localhost:3000, choisir un preset (ex: "RLC Serie"), cliquer "Generate".
+
+> **Note** : Le backend a besoin du modele V5. Par defaut il cherche dans `../ml/outputs/checkpoints/best_v5.pt`. Voir [web/README.md](web/README.md) pour configurer le chemin.
+
+### 2. Entrainer le modele
 
 ```bash
 cd ml
 pip install -r requirements.txt
 
-# Générer un dataset
-python generate_dataset_v4.py
+# Generer un dataset (150k circuits)
+python generate_dataset_v4.py --num-samples 150000 --output outputs/dataset.pt
 
-# Entraîner le modèle
-python scripts/train_v7.py
+# Entrainer
+python scripts/train_v7.py --data outputs/dataset.pt --output-dir outputs/training --epochs 100
 ```
 
-### Application Web
+Voir [ml/README.md](ml/README.md) pour le detail.
+
+### 3. Voir les slides
 
 ```bash
-# Backend
-cd web/backend
-pip install -r requirements.txt
-python main.py
-
-# Frontend (autre terminal)
-cd web/frontend
+cd slideshow
 npm install
 npm run dev
+# -> http://localhost:3000
 ```
 
-## Performances
+Voir [slideshow/README.md](slideshow/README.md).
 
-| Métrique | Valeur |
+### 4. Voir la video
+
+```bash
+cd video
+npm install
+npx remotion preview
+```
+
+Voir [video/README.md](video/README.md).
+
+## Architecture du modele
+
+- **Encoder** : CNN 1D (Conv1d 2 → 64 → 128 → 256, puis MLP → latent 256D)
+- **Decoder** : Transformer autoregressif (6 couches, 8 tetes, d_model=512)
+- **Contrainte** : Masking node_b != node_a pour empecher les self-loops
+- **Sortie** : Sequence de tokens [type, node_a, node_b, valeur] x 10 composants max
+- **Parametres** : 27.7M
+
+## Resultats (modele V5)
+
+| Metrique | Valeur |
 |----------|--------|
 | Type accuracy | 99.8% |
-| Validité circuits | 60% |
 | Self-loops | 0% |
+| Validite circuits | ~40% (brut), ~65% (apres reparation) |
+| RMSE best-of-50 | 0.35 |
 
-## Documentation
+## Liens vers les sous-READMEs
 
-- [Rapport complet](docs/RAPPORT_PROJET.md)
-- [Détails du générateur](docs/GENERATEUR.md)
-- [Questions de soutenance](docs/soutenance/)
+| Dossier | Description | README |
+|---------|-------------|--------|
+| `ml/` | Entrainement, generateur, solveur MNA | [ml/README.md](ml/README.md) |
+| `web/` | Backend API + Frontend interactif | [web/README.md](web/README.md) |
+| `slideshow/` | Presentation de soutenance (43 slides) | [slideshow/README.md](slideshow/README.md) |
+| `video/` | Video de demo (Remotion) | [video/README.md](video/README.md) |
+| `visualizer/` | Outils de dessin de circuits | [visualizer/README.md](visualizer/README.md) |
+| `livrables/` | Modele V5 + datasets prets a l'emploi | [livrables/README.md](livrables/README.md) |
+| `docs/` | Rapport final | [docs/README.md](docs/README.md) |
 
-## Auteur
+## Prerequis
 
-Projet de fin d'études - Circuit Synthesis AI
+- **Python 3.10+** avec PyTorch 2.x
+- **Node.js 18+** (pour le frontend, slideshow, video)
+- **GPU** recommande pour l'entrainement (NVIDIA avec CUDA). L'inference fonctionne sur CPU.
