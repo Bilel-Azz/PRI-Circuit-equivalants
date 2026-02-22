@@ -1,909 +1,539 @@
-# Rapport de Projet: Synthèse de Circuits Électriques par Deep Learning
+# Rapport de Projet PRI : Synthese de circuits equivalents par IA
 
-## Prédiction de topologies de circuits passifs (R, L, C) à partir de courbes d'impédance Z(f)
+## Prediction de topologies de circuits passifs (R, L, C) a partir de courbes d'impedance Z(f)
 
-**Étudiant**: Bilel Azzabi
-**Période**: Décembre 2025 - Janvier 2026
-**Projet**: PRI (Projet de Recherche et Innovation)
-
----
-
-# Table des Matières
-
-1. [Introduction et Objectif](#1-introduction-et-objectif)
-2. [Infrastructure: Pourquoi un Serveur Distant](#2-infrastructure-pourquoi-un-serveur-distant)
-3. [Approche Technique de Base](#3-approche-technique-de-base)
-4. [Parcours du Projet: Problèmes et Solutions](#4-parcours-du-projet-problèmes-et-solutions)
-5. [Best-of-N: La Stratégie d'Inférence](#5-best-of-n-la-stratégie-dinférence)
-6. [Optimisations GPU](#6-optimisations-gpu)
-7. [État Actuel et Résultats](#7-état-actuel-et-résultats)
-8. [Conclusion et Perspectives](#8-conclusion-et-perspectives)
+**Etudiant** : Bilel AAZZOUZ
+**Encadrants** : Frederic Rayar, Yannick Kergossien, Ismail Aouichak
+**Formation** : PRI 5A, Polytech Tours, 2025-2026
+**Duree** : Decembre 2025 - Fevrier 2026 (~160 heures)
 
 ---
 
-# 1. Introduction et Objectif
+# Table des matieres
 
-## 1.1 Le Problème à Résoudre
-
-**Objectif**: Créer une IA capable de "deviner" quel circuit électrique produit une courbe d'impédance donnée.
-
-```
-ENTRÉE                                    SORTIE
-──────                                    ──────
-Courbe d'impédance Z(f)                   Circuit équivalent
-┌─────────────────┐                       ┌─────────────┐
-│     /\          │                       │  R ─── L    │
-│    /  \         │     ────────►         │       │     │
-│   /    \        │      Modèle IA        │       C     │
-│  /      ────────│                       │       │     │
-└─────────────────┘                       └─────────────┘
-100 fréquences (10Hz à 10MHz)             Composants + connexions
-```
-
-**Entrée**: Une courbe avec 100 points (magnitude et phase de l'impédance à différentes fréquences)
-
-**Sortie**: Une liste de composants (R, L, C) avec leurs valeurs et leurs connexions entre les nœuds du circuit
-
-## 1.2 Pourquoi c'est Difficile
-
-### C'est un problème inverse MAL POSÉ
-
-**Point crucial**: Plusieurs circuits différents peuvent produire **exactement la même courbe Z(f)**!
-
-Exemple:
-- Un R de 100Ω donne Z = 100Ω
-- Deux R de 50Ω en série donnent aussi Z = 100Ω
-
-**Conséquence fondamentale**: Le modèle ne cherche pas LE circuit original, mais UN circuit **fonctionnellement équivalent** qui reproduit la courbe.
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    CE QUE FAIT LE MODÈLE                            │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│   Input: Courbe Z(f)                    Output: Circuit ÉQUIVALENT  │
-│   ┌─────────────────┐                   ┌─────────────────┐         │
-│   │    RL Série     │                   │   R + 2L + C    │         │
-│   │  R=470Ω L=10mH  │  ──── IA ────▶   │  (autre topo)   │         │
-│   │                 │                   │                 │         │
-│   └─────────────────┘                   └─────────────────┘         │
-│           │                                     │                   │
-│           └──────────── MÊME Z(f) ─────────────┘                   │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-**Analogie**: "Quel calcul donne 10?"
-- 5 × 2 = 10 ✓
-- 20 ÷ 2 = 10 ✓
-- 7 + 3 = 10 ✓
-
-Toutes les réponses sont correctes! **Ce qui compte, c'est le résultat (la courbe), pas le chemin (la topologie).**
-
-### Défis techniques
-
-| Défi | Explication |
-|------|-------------|
-| **Plage de valeurs énorme** | R va de 0.1Ω à 10MΩ, C de 1pF à 100µF (**28 ordres de grandeur!**) |
-| **Topologie variable** | De 1 à 10 composants, connexions arbitraires |
-| **Multi-tâche** | Le modèle doit prédire le TYPE (R/L/C), la VALEUR, et les CONNEXIONS |
-| **Circuits valides** | Il ne faut pas de fils qui partent nulle part ou de courts-circuits |
+1. [Introduction et contexte](#1-introduction-et-contexte)
+2. [Cahier des charges](#2-cahier-des-charges)
+3. [Methodologie](#3-methodologie)
+4. [Realisation technique](#4-realisation-technique)
+   - 4.1 [Generation de donnees](#41-generation-de-donnees)
+   - 4.2 [Representation des circuits](#42-representation-des-circuits)
+   - 4.3 [Architecture du modele](#43-architecture-du-modele)
+   - 4.4 [Entrainement et evolution du modele](#44-entrainement-et-evolution-du-modele)
+   - 4.5 [Optimisations](#45-optimisations)
+   - 4.6 [Application web](#46-application-web)
+5. [Resultats](#5-resultats)
+6. [Experimentations post-V5](#6-experimentations-post-v5)
+7. [Problemes rencontres](#7-problemes-rencontres)
+8. [Bilan et perspectives](#8-bilan-et-perspectives)
 
 ---
 
-# 2. Infrastructure: Pourquoi un Serveur Distant
+# 1. Introduction et contexte
 
-## 2.1 Le Problème: Pas Assez de Puissance
+## 1.1 Les circuits RLC
 
-**Constat initial**: Mon MacBook (CPU uniquement) mettait **plusieurs jours** pour entraîner un modèle sur 100 epochs. C'était impossible de tester rapidement différentes idées.
+Les circuits passifs composes de resistances (R), d'inductances (L) et de condensateurs (C) sont omnipresents en electronique. Chaque circuit possede une **signature frequentielle** unique : sa courbe d'impedance Z(f), qui decrit comment le circuit s'oppose au passage du courant a differentes frequences.
 
-**Solution**: J'ai loué un serveur GPU chez OVH.
-
-## 2.2 Le Serveur OVH
-
-| Caractéristique | Spécification |
-|-----------------|---------------|
-| **GPU** | NVIDIA Quadro RTX 5000 (16 GB VRAM) |
-| **RAM** | ~28 GB |
-| **Adresse** | 57.128.57.31 (Ubuntu) |
-
-**Résultat**: Un entraînement de 100 epochs prend maintenant **3-4 heures** au lieu de plusieurs jours. J'ai pu itérer beaucoup plus vite.
-
-## 2.3 Architecture Déployée
+L'impedance complexe d'un circuit RLC serie s'exprime :
 
 ```
-Serveur OVH (57.128.57.31)
-├── circuit_transformer/     # Code d'entraînement
-│   ├── models/             # Architectures neuronales
-│   ├── training/           # Scripts de training + loss
-│   ├── data/               # Générateurs de datasets
-│   └── outputs/            # Modèles et datasets générés
-│
-└── circuit_web_backend/    # API REST (FastAPI)
-    └── main.py             # Endpoints pour l'interface web
+Z(f) = R + j(wL - 1/wC)    avec w = 2*pi*f
 
-Machine locale (MacBook)
-└── Interface React         # Pour tester le modèle visuellement
+Module :  |Z(f)| = sqrt(R^2 + (wL - 1/wC)^2)
+Phase :   phi(f) = arctan((wL - 1/wC) / R)
 ```
+
+A la frequence de resonance f0 = 1/(2*pi*sqrt(LC)), les contributions de L et C s'annulent et l'impedance est minimale (Z = R).
+
+## 1.2 Le probleme inverse
+
+L'objectif de ce projet est de resoudre le **probleme inverse** : a partir d'une courbe d'impedance Z(f), retrouver un circuit equivalent qui la produit.
+
+```
+ENTREE                                    SORTIE
+------                                    ------
+Courbe d'impedance Z(f)                   Circuit equivalent
+  100 frequences (10 Hz a 10 MHz)         Composants R, L, C + connexions
+  2 canaux : module + phase
+```
+
+### Pourquoi c'est difficile
+
+Ce probleme est **mal pose** : plusieurs circuits differents peuvent produire exactement la meme courbe Z(f). Par exemple, un R de 100 Ohm donne le meme resultat que deux R de 50 Ohm en serie. Le modele ne cherche donc pas LE circuit original, mais UN circuit **fonctionnellement equivalent** qui reproduit la courbe.
+
+De plus, les valeurs des composants couvrent une plage enorme : les resistances vont de 1 Ohm a 1 MOhm, les inductances de 1 uH a 100 mH, et les condensateurs de 1 pF a 100 uF.
+
+## 1.3 L'approche choisie
+
+L'approche est 100% supervisee avec des **donnees synthetiques** :
+
+1. Generer des circuits aleatoires avec des composants et connexions variees
+2. Calculer leur courbe Z(f) avec un solveur MNA (Modified Nodal Analysis)
+3. Entrainer un reseau de neurones a predire le circuit a partir de la courbe
+
+L'avantage de cette approche est de disposer d'un dataset illimite avec un ground truth parfait. L'inconvenient : le modele n'apprend que ce qu'on lui montre, donc la qualite du dataset est cruciale.
 
 ---
 
-# 3. Approche Technique de Base
+# 2. Cahier des charges
 
-## 3.1 Données 100% Synthétiques
+## 2.1 Exigences fonctionnelles
 
-**Problème**: Il n'existe pas de dataset public avec des circuits et leurs courbes d'impédance.
+### Perimetre initial (requis)
 
-**Solution**: Générer les données synthétiquement:
-1. Créer un circuit aléatoire (composants + connexions)
-2. Calculer sa courbe Z(f) avec un solveur MNA (Modified Nodal Analysis)
-3. Former une paire (courbe, circuit) pour l'entraînement
+| ID  | Exigence |
+|-----|----------|
+| EF1 | Generer des datasets synthetiques de circuits |
+| EF2 | Entrainer un modele IA pour predire les circuits |
+| EF3 | Calculer Z(f) via solveur MNA |
+| EF4 | Representation vectorielle des circuits |
 
-**Avantage**: Dataset illimité, ground truth parfait.
+### Ajouts personnels (initiative propre)
 
-**Inconvénient majeur** (on le verra plus tard): **Le modèle n'apprend que ce qu'on lui montre**. Si le dataset est biaisé, le modèle sera biaisé.
+| ID  | Exigence |
+|-----|----------|
+| EF5 | API backend pour l'inference (FastAPI) |
+| EF6 | Interface web de visualisation (Next.js) |
 
-## 3.2 Le Solveur MNA
+## 2.2 Contraintes
 
-Le solveur calcule l'impédance en résolvant un système linéaire:
-```
-Y · V = I
+- **100% donnees synthetiques** : pas de mesures reelles disponibles
+- **Duree** : 5 mois (avec une pause de 7 semaines pour raisons personnelles)
 
-où:
-- Y = matrice d'admittance (construite à partir des composants)
-- V = tensions aux nœuds (à trouver)
-- I = courants injectés (on injecte 1A à l'entrée)
+## 2.3 Outils
 
-Admittances des composants:
-- Résistance:  Y_R = 1/R
-- Inductance:  Y_L = 1/(jωL) = -j/(ωL)
-- Capacité:    Y_C = jωC
-
-Impédance = V[entrée] / I[entrée]
-```
-
-## 3.3 Représentation des Circuits: Le Choix Crucial
-
-### Pourquoi la représentation est critique
-
-Un circuit est un **graphe** (nœuds + arêtes). Mais les réseaux de neurones travaillent avec des **tenseurs de taille fixe**. Comment convertir?
-
-### Approche matricielle (ÉCHEC)
-
-**Première idée**: Représenter le circuit comme une matrice 8×8.
-
-```
-edge_types[i,j] = type du composant entre nœuds i et j
-                  0=NONE, 1=R, 2=L, 3=C
-```
-
-**Pourquoi ça a échoué**: Sur 64 positions (8×8), environ **90% sont NONE** (pas de composant).
-
-```
-Exemple circuit 5 composants:
-[0 1 0 0 0 0 0 0]    ← 1 seul composant sur cette ligne
-[1 0 2 0 0 0 0 0]
-[0 2 0 3 0 0 0 0]    Le modèle doit prédire 64 positions
-[0 0 3 0 0 0 0 0]    dont 59 sont "NONE"
-[0 0 0 0 0 0 0 0]
-...                   → Le modèle apprend à prédire NONE partout!
-```
-
-### Approche séquentielle (SUCCÈS)
-
-**Idée**: Représenter le circuit comme une **séquence de tokens** (inspiré de SMILES pour les molécules en chimie).
-
-```
-[START, Composant1, Composant2, ..., END, PAD, PAD, ...]
-
-Chaque composant = [TYPE, NODE_A, NODE_B, VALEUR]
-
-Exemple:
-- R(100Ω) entre nœuds 0-1, L(1mH) entre nœuds 1-2
-- → [START, [R,0,1,100], [L,1,2,0.001], END]
-```
-
-**Avantage énorme**: 100% des positions sont utiles (vs 10% pour les matrices).
-
-### Normalisation des valeurs
-
-**Problème**: Les valeurs couvrent 28 ordres de grandeur!
-
-**Solution**: Normaliser autour de valeurs typiques.
-
-```python
-VALUE_CENTER = {
-    R: 3.0,   # Centre = 1kΩ = 10³
-    L: -4.0,  # Centre = 100µH = 10⁻⁴
-    C: -8.0,  # Centre = 10nF = 10⁻⁸
-}
-
-normalized_value = log10(value) - VALUE_CENTER[type]
-# Résultat: valeurs entre -4 et +4 (faciles à apprendre)
-```
-
-## 3.4 Architecture du Modèle
-
-```
-Courbe Z(f)           Encoder CNN              Decoder Transformer
-(2, 100)        →     (convolutions)      →    (attention)
-                           ↓                         ↓
-                      Vecteur latent           Séquence de tokens
-                        (256 dim)              [type, node_a, node_b, value]
-```
-
-**Architecture complète**:
-- **Encoder CNN**: Conv1d(2→64→128→256) + FC(→256)
-- **Decoder Transformer**: 6 couches, 8 têtes d'attention, d_model=512
-- **Têtes de prédiction**:
-  - type_head: Linear(512 → 6) — R, L, C, START, END, PAD
-  - node_a_head: Linear(512 → 8) — nœuds 0-7
-  - node_b_head: Linear(512 → 8) — nœuds 0-7
-  - value_head: Linear(512 → 1) — valeur normalisée
-
-**Paramètres totaux**: 27.7 millions
+| Outil | Role |
+|-------|------|
+| PyTorch | Entrainement du modele IA |
+| Python | Solveur MNA, generation de donnees |
+| FastAPI | Backend API REST |
+| Next.js + React | Interface web |
 
 ---
 
-# 4. Parcours du Projet: Problèmes et Solutions
+# 3. Methodologie
 
-Cette section raconte **chronologiquement** comment le projet a évolué, avec pour chaque étape: **le problème rencontré**, **pourquoi la solution semblait bonne**, et **si ça a marché ou pas**.
+## 3.1 Demarche exploratoire et iterative
 
----
+Le projet a suivi une demarche exploratoire, avec un cycle repete a chaque version du modele :
 
-## 4.1 Phase 1: Tentatives Initiales (Début Décembre) — ÉCHECS
+1. **Exploration** : recherche bibliographique, etude des approches existantes
+2. **Prototypage** : implementation rapide d'une solution candidate
+3. **Test** : evaluation sur le dataset, mesure des metriques
+4. **Analyse** : diagnostic des erreurs, identification des limites
+5. **Amelioration** : correction ciblee du probleme identifie
 
-### 4.1.1 Tentative: Solveur Différentiable
+Ce cycle a ete repete une douzaine de fois au total, ce qui a permis d'ameliorer progressivement le modele a travers les versions V1 a V12.
 
-**L'idée**: Rendre le calcul de Z(f) différentiable pour faire du backpropagation directement à travers le solveur.
+## 3.2 Planning
 
-**Pourquoi ça semblait une bonne idée**: Pas besoin de dataset! On optimise directement "quel circuit donne cette courbe".
+Le projet s'est deroule en plusieurs phases :
 
-**Ce qui s'est passé**: **ÉCHEC total**. Les valeurs des composants couvrent 28 ordres de grandeur. Quand on fait passer les gradients à travers l'inversion de matrice (`torch.linalg.solve`), ils explosent ou disparaissent. Instabilité numérique totale.
+1. **Specifications** (decembre 2025) : cahier des charges, etude de l'existant
+2. **Problemes personnels** (novembre - 20 decembre) : pause de ~7 semaines
+3. **Creation du dataset** (decembre 2025) : generateurs V1 a V4
+4. **Representation des circuits** (decembre 2025) : matrice 8x8 puis tokens sequentiels
+5. **Entrainement du modele** (janvier 2026) : versions V1 a V12
+6. **Backend + Frontend** (janvier 2026) : API FastAPI, interface Next.js
+7. **Tests et validation** (fevrier 2026) : evaluation, optimisations
+8. **Documents et soutenance** (fevrier 2026) : rapport, slides, demo
 
-### 4.1.2 Tentative: REINFORCE sans Pré-training
+## 3.3 Gestion des risques
 
-**L'idée**: Utiliser du reinforcement learning (policy gradients). Le modèle génère des circuits, on calcule la récompense (erreur sur la courbe), et on optimise.
+Les principaux risques identifies et leur evolution :
 
-**Pourquoi ça semblait une bonne idée**: Pas besoin de supervision explicite.
+| Risque | Criticite initiale | Pic | Criticite finale |
+|--------|-------------------|-----|-----------------|
+| Qualite des donnees | Moyenne | Haute | Moyenne |
+| Communication encadrants | Haute | Tres haute | Haute |
+| Overfitting | Faible | Haute | Moyenne |
+| Representation des circuits | Haute | - | Resolu |
+| Delai (pause personnelle) | Faible | Tres haute | Faible |
 
-**Ce qui s'est passé**: **ÉCHEC — Mode collapse**. Sans pré-training supervisé, le modèle ne sait pas générer de circuits valides. Les rewards sont tous ~0 au début, donc pas de signal d'apprentissage. Le modèle finit par toujours générer le même circuit (un simple condensateur) car c'est un minimum local qui donne une récompense "acceptable".
-
-### 4.1.3 Tentative: Représentation Matricielle (8×8)
-
-**L'idée**: Représenter le circuit comme une matrice d'adjacence.
-
-**Pourquoi ça semblait une bonne idée**: C'est la représentation naturelle d'un graphe.
-
-**Ce qui s'est passé**: **ÉCHEC**. 90% des cases sont vides. Le modèle apprend à prédire "vide" partout — c'est la solution triviale qui minimise la loss.
-
-### Décision clé
-
-**Après ces échecs, j'ai abandonné les approches "fancy" (end-to-end, RL) et adopté l'approche supervisée classique avec représentation séquentielle.**
-
----
-
-## 4.2 Phase 2: Premier Modèle Fonctionnel (Mi-Décembre)
-
-### Dataset V1: Premier Dataset (50k samples)
-
-**Approche**: Générer des circuits complètement aléatoires avec le solveur MNA.
-
-**Ce qui a été fait**:
-- Nombre de composants: 1 à 6 (aléatoire)
-- Types: R, L, C (aléatoire)
-- Valeurs: distribution log-uniforme
-- Connexions: aléatoires entre 4 nœuds
-
-### Model V1-V2: Heads Indépendantes
-
-**Architecture**: Encoder CNN + Decoder Transformer avec 4 têtes de prédiction **indépendantes**:
-- type_head → prédit R/L/C
-- node_a_head → prédit le premier nœud
-- node_b_head → prédit le deuxième nœud
-- value_head → prédit la valeur
-
-### Le Problème: 91% de Circuits INVALIDES !
-
-**Constat choquant**: Le modèle génère des circuits physiquement impossibles:
-
-| Problème | Fréquence | Explication |
-|----------|-----------|-------------|
-| **Self-loops** | 42% | node_a = node_b (composant relié à lui-même!) |
-| **Connexions dupliquées** | 31% | Deux composants identiques entre les mêmes nœuds |
-| **Nœuds flottants** | 9% | Fils qui ne mènent nulle part |
-| **Autres invalides** | 9% | Graphe non connexe, etc. |
-
-**Pourquoi?** Les têtes sont indépendantes. Quand le modèle prédit node_a=2, **rien ne l'empêche de prédire node_b=2 aussi** → self-loop. C'est un bug architectural fondamental.
+La representation des circuits etait le risque le plus critique au debut, mais il a ete resolu par le passage aux tokens sequentiels. La communication avec les encadrants est restee un point d'attention tout au long du projet en raison de la pause.
 
 ---
 
-## 4.3 Phase 3: Résoudre les Self-Loops (Fin Décembre)
+# 4. Realisation technique
 
-### Le Problème Précis
+## 4.1 Generation de donnees
 
-42% des circuits ont des self-loops (composant relié à lui-même). C'est physiquement impossible et rend le circuit invalide. C'est le problème numéro 1 à résoudre.
+### Premiere approche : generation aleatoire
 
-### Première Tentative: Pénalités dans la Loss
+La premiere approche consistait a generer des circuits 100% aleatoires :
 
-**L'idée**: Ajouter une pénalité dans la loss quand node_a = node_b.
+1. Choisir un nombre de composants au hasard (1 a 6)
+2. Tirer les types aleatoirement (R, L ou C)
+3. Attribuer des valeurs en distribution log-uniforme
+4. Connecter les composants a des noeuds tires au sort
 
-```python
-loss = standard_loss + 10 * self_loop_penalty
+**Problemes identifies** :
+
+- **Distribution non controlee** : impossible de garantir la diversite des courbes. 80% des courbes generees etaient monotones (pas de resonance), car la majorite des circuits aleatoires sont des combinaisons simples (R seul, RC, RL).
+- **Beaucoup de circuits invalides** : composants connectes au meme noeud (self-loops), noeuds isoles. Seulement 9% des circuits generes etaient valides.
+
+### Solution : generateur par templates de topologies
+
+Pour resoudre ces problemes, j'ai cree un generateur qui utilise des **templates de topologies** predefinies. Chaque template garantit une forme de courbe unique :
+
+| Topologie | % du dataset | Particularite |
+|-----------|-------------|---------------|
+| RLC serie resonant | 20% | Cas de base, resonance simple |
+| Tank LC (anti-resonant) | 25% | Impedance maximale a la resonance |
+| Double resonance | 25% | Deux pics/creux distincts |
+| Notch filter | 15% | Rejet de frequence |
+| Ladder multi-etages | 15% | Circuits complexes (escalier) |
+
+Cette approche a permis de passer d'un dataset domine par les circuits simples a un dataset equilibre avec une variete de courbes d'impedance.
+
+### Le solveur MNA
+
+Pour calculer l'impedance d'un circuit, j'utilise la methode MNA (Modified Nodal Analysis). Le solveur construit une matrice d'admittance Y et resout le systeme :
+
+```
+Y * V = I
 ```
 
-**Résultat**: **Insuffisant**. Les self-loops diminuent (42% → 25%) mais ne disparaissent pas. Le modèle "essaie" d'éviter les self-loops mais n'y arrive pas toujours.
+ou Y est la matrice d'admittance (construite a partir des composants), V les tensions aux noeuds (a trouver), et I les courants injectes. L'impedance est alors Z = V[entree] / I[entree].
 
-**Pourquoi?** Une pénalité **encourage** à éviter, mais ne **garantit** pas. C'est comme mettre une amende pour excès de vitesse — ça réduit mais n'élimine pas.
+Ce calcul est repete pour chacune des 100 frequences, de 10 Hz a 10 MHz.
 
-### Solution: Constrained Decoder (Model V4)
+## 4.2 Representation des circuits
 
-**L'idée révolutionnaire**: Au lieu d'encourager, **rendre IMPOSSIBLE** de prédire node_b = node_a.
+### Le probleme
 
-**Comment?** Le decoder prédit node_b **conditionnellement** à node_a, avec un **masking** qui met les logits de node_a à -∞.
+Un circuit est un **graphe** (noeuds + aretes). Mais les reseaux de neurones travaillent avec des **tenseurs de taille fixe**. Comment convertir un circuit en nombres ?
 
-```python
-# AVANT (V1-V2): Prédictions indépendantes
-node_a = argmax(node_a_head(hidden))
-node_b = argmax(node_b_head(hidden))  # Peut être = node_a!
+### Premiere idee : matrice d'adjacence 8x8 (echec)
 
-# APRÈS (V4): Prédiction conditionnelle avec masking
-node_a = argmax(node_a_head(hidden))
-# On concatène l'info de node_a avant de prédire node_b
-node_b_input = concat(hidden, one_hot(node_a))
-node_b_logits = node_b_head(node_b_input)
-node_b_logits[node_a] = -inf  # INTERDIT de prédire node_b = node_a
-node_b = argmax(node_b_logits)
+La premiere idee etait de representer le circuit comme une matrice d'adjacence : chaque case (i,j) contient le type du composant entre les noeuds i et j.
+
+**Pourquoi ca a echoue** : sur 64 positions (8x8), environ 90% sont vides (pas de composant). Le modele apprenait a predire "vide" partout, car c'est la solution triviale qui minimise la loss. Resultat : seulement 48% d'accuracy.
+
+**Lecon tiree** : il faut une representation compacte ou chaque nombre compte.
+
+### Solution : tokens sequentiels
+
+Chaque composant est represente par un **token** de 4 valeurs :
+
+```
+[TYPE, NODE_A, NODE_B, VALEUR]
+
+Exemple : R(100 Ohm) entre noeuds 0 et 1
+       -> [1, 0, 1, 0.0]   (type=R, noeuds 0-1, valeur normalisee)
 ```
 
-### Résultat: Self-Loops ÉLIMINÉS !
+Un circuit complet est une sequence de tokens, avec du padding (type=NONE) pour les positions inutilisees.
 
-| Métrique | V1-V2 | V4 |
-|----------|-------|-----|
-| **Self-loops** | 42% | **0%** |
-| Circuits valides | 9% | 60% |
-| Type accuracy | 94.8% | 97.2% |
+**Normalisation des valeurs** : les valeurs couvrent des ordres de grandeur tres differents. La solution est de prendre le log10 et de centrer autour de valeurs typiques :
+- R : log10(R) - 3 (centre = 1 kOhm)
+- L : log10(L) + 4 (centre = 100 uH)
+- C : log10(C) + 8 (centre = 10 nF)
 
-**Leçon fondamentale**: **Les contraintes architecturales sont bien plus efficaces que les pénalités dans la loss.** Le masking **garantit** l'absence de self-loops — ce n'est pas une question d'optimisation.
+Resultat : toutes les valeurs normalisees tombent dans l'intervalle [-4, +4], ce qui facilite l'apprentissage.
+
+**Avantages** de cette representation :
+- Taille fixe, compatible avec le batching GPU
+- 100% des positions sont utiles (vs 10% pour la matrice)
+- Padding naturel avec type=NONE
+
+## 4.3 Architecture du modele
+
+L'architecture se compose d'un **encoder CNN** et d'un **decoder Transformer** :
+
+### Encoder CNN
+
+L'encoder prend la courbe d'impedance en entree (2 canaux x 100 frequences) et en extrait un vecteur latent. Il utilise des convolutions 1D pour capturer les motifs locaux de la courbe (pentes, pics, creux).
+
+```
+Entree (2, 100) -> Conv1d(2->64) -> Conv1d(64->128) -> Conv1d(128->256) -> MLP -> Latent (256)
+```
+
+On peut voir l'encoder comme un "reconnaisseur de formes de courbes" : il identifie les features importantes (nombre de resonances, pentes, niveaux).
+
+### Decoder Transformer
+
+Le decoder genere la sequence de composants un par un, en utilisant le mecanisme d'attention pour acceder au vecteur latent. Il comporte 6 couches de Transformer avec 8 tetes d'attention (d_model=512).
+
+Les 8 tetes d'attention sont comme 8 experts paralleles : chacun se specialise sur un aspect different du probleme (un expert regarde les types, un autre les connexions, etc.).
+
+Pour chaque position de la sequence, le decoder predit :
+- **type** : R, L, C, ou NONE (fin du circuit)
+- **node_a** : premier noeud de connexion
+- **node_b** : second noeud de connexion (contraint a etre different de node_a)
+- **valeur** : valeur normalisee du composant
+
+### Contrainte architecturale : node_b != node_a
+
+Une innovation cle du modele est le **masking** qui empeche le decoder de predire node_b = node_a (self-loop). Au lieu d'ajouter une penalite dans la loss (qui encourage mais ne garantit pas), on modifie l'architecture pour rendre la prediction impossible :
+
+```
+1. Le decoder predit node_a
+2. On concatene l'info de node_a avec le hidden state
+3. On predit node_b, mais les logits de node_a sont mis a -inf
+4. node_b ne peut physiquement PAS etre egal a node_a
+```
+
+Cette contrainte garantit 0% de self-loops, ce qui est bien plus efficace qu'une penalite.
+
+**Conclusion architecturale** : les contraintes architecturales (masking, tokens) sont plus efficaces que les penalites de loss.
+
+**Parametres totaux** : 27.7 millions
+
+## 4.4 Entrainement et evolution du modele
+
+Le modele a evolue a travers plusieurs versions, chacune corrigeant un probleme precis :
+
+### V1-V2 : premier modele fonctionnel
+
+- **Architecture** : encoder CNN + decoder Transformer avec 4 tetes de prediction independantes
+- **Dataset** : V1 (50k circuits aleatoires)
+- **Probleme** : 42% de self-loops (composant relie a lui-meme), seulement 9% de circuits valides
+- **Cause** : les tetes sont independantes, rien n'empeche de predire node_a = node_b
+
+### V3 : loss avec penalites
+
+- **Changement** : ajout de penalites de validite dans la loss (self-loop, duplicates, GND/IN)
+- **Resultat** : self-loops reduits a 20%, validite 30%
+- **Insuffisant** : les penalites encouragent mais ne garantissent pas
+
+### V4 : decoder contraint
+
+- **Changement** : masking node_b != node_a dans le decoder
+- **Resultat** : **0% de self-loops**, validite 60%
+- **Lecon** : les contraintes architecturales sont bien plus efficaces que les penalites
+
+### V5 : meilleur modele (deploye)
+
+- **Changement** : dataset V3 (150k circuits equilibres avec templates) + 100 epochs d'entrainement
+- **Resultat** : 0% self-loops, validite ~40%, val_loss = 0.256
+- **Statut** : **Modele en production**
+
+### V6 : tentative sur dataset V4 (echec)
+
+- **Changement** : re-entrainement sur dataset V4 (50% doubles resonances forcees)
+- **Resultat** : overfitting catastrophique a epoch 15 (val_loss diverge a 8.5)
+- **Cause** : tau annealing trop agressif + dataset trop homogene
+- **Decision** : retour au V5
+
+## 4.5 Optimisations
+
+Trois optimisations majeures ont ete realisees pour ameliorer les performances :
+
+### Vectorisation du solveur MNA
+
+Le solveur MNA original utilisait des boucles Python imbriquees (batch x sequence x frequence), ce qui etait extremement lent : **1700 ms par batch**.
+
+En remplacant toutes les boucles par des operations tensorielles PyTorch vectorisees, le temps a ete reduit a **5 ms par batch**, soit un speedup de **340x**.
+
+### Strategie Best-of-N
+
+Au lieu de generer un seul circuit, le modele genere N=50 candidats avec des temperatures d'echantillonnage variees. On calcule Z(f) de chaque candidat via le solveur MNA et on garde celui avec la plus petite erreur (RMSE).
+
+| N | RMSE | Amelioration |
+|---|------|-------------|
+| 1 | 3.05 | baseline |
+| 10 | 0.71 | -76.7% |
+| 50 | 0.35 | **-88.5%** |
+| 100 | 0.31 | -89.8% |
+
+Cette strategie est analogue au beam search en NLP ou au rejection sampling en statistiques. Le modele fait le travail dur (generer des candidats plausibles), le solveur verifie.
+
+### Reparation automatique
+
+Un post-traitement corrige automatiquement les circuits invalides generes par le modele : suppression des self-loops restants, fusion des edges dupliquees, verification de la connectivite.
+
+Resultat : la validite passe de **~40% a ~65%** apres reparation.
+
+## 4.6 Application web
+
+### Backend (FastAPI)
+
+Le backend expose une API REST qui :
+1. Recoit une courbe d'impedance (100 points, magnitude + phase)
+2. Execute le modele V5 pour generer N=50 candidats
+3. Calcule Z(f) de chaque candidat via le solveur MNA vectorise
+4. Selectionne le meilleur circuit (RMSE minimale)
+5. Renvoie le circuit avec sa courbe recalculee
+
+Le temps de reponse est d'environ 2 secondes pour 50 candidats.
+
+### Frontend (Next.js + React)
+
+L'interface web permet de :
+- Dessiner ou uploader une courbe d'impedance
+- Visualiser le circuit predit (composants + connexions)
+- Comparer la courbe cible avec la courbe du circuit predit
+- Ajuster les parametres (nombre de candidats, temperature)
+
+L'interface utilise des graphiques interactifs pour afficher les courbes de magnitude et de phase.
 
 ---
 
-## 4.4 Phase 4: Le Problème des Circuits "Trop Simples" (Début Janvier)
+# 5. Resultats
 
-### Observation Inquiétante
+## 5.1 Metriques du modele V5
 
-Avec le Dataset V1, le modèle marche bien sur les circuits simples (RLC série, RC, RL). Mais quand je lui donne une courbe **complexe** (double résonance par exemple), il génère... un circuit simple qui "approxime" la courbe!
-
-```
-Courbe cible: Double résonance          Ce que le modèle prédit: RLC simple
-      ___                                      ___
-     /   \                                    /   \
-____/     \____                            __/     \____
-         /\
-        /  \                              ← Le deuxième pic est IGNORÉ!
-       /    \
-```
-
-### Pourquoi le Modèle "Lisse" les Courbes?
-
-**Analyse du Dataset V1**:
-```
-Distribution des circuits dans V1:
-- R seul: 18.8%
-- L seul: 18.9%
-- C seul: 18.9%
-- Circuits avec R+L+C: seulement 9.9%!
-- Circuits simples (≤3 comp): 46.1%
-```
-
-**Le problème**: La majorité des circuits sont simples (1-3 composants). Le modèle a appris que:
-1. Un circuit simple donne une erreur "acceptable" sur TOUTES les courbes
-2. Pourquoi risquer de prédire un circuit complexe qui pourrait être faux?
-
-**Le modèle prend le chemin de moindre résistance**: Prédire un RLC simple est "safe". C'est comme un élève qui répond toujours "je ne sais pas" — il n'a jamais tort!
-
-### Dataset V2: Tentative d'Équilibrage (100k samples)
-
-**L'idée**: Augmenter le dataset et essayer d'équilibrer les types.
-
-**Résultat**: **Insuffisant**. Le générateur aléatoire produit naturellement plus de circuits simples. Même avec 100k samples, la distribution reste biaisée.
-
-### Dataset V3: Distribution FORCÉE (150k samples)
-
-**L'idée**: Ne plus compter sur le hasard. Créer un générateur qui **force** une distribution spécifique:
-
-| Type de circuit | % du dataset | Pourquoi? |
-|-----------------|--------------|-----------|
-| RLC série résonant | 20% | Cas de base, bien maîtrisé |
-| Tank LC (anti-résonant) | 25% | Importante famille à apprendre |
-| Double résonance | 25% | Le cas difficile qu'on veut résoudre |
-| Notch filter | 15% | Autre pattern important |
-| Circuits complexes | 15% | Pour la généralisation |
-
-**Ce qui a été fait**:
-- Générateur V3 avec **templates** de circuits pour chaque type
-- 150k samples
-- **Validation** que chaque type est bien représenté
-
-### Model V5: Entraîné sur Dataset V3
-
-**Résultats**:
-
-| Métrique | Valeur |
+| Metrique | Valeur |
 |----------|--------|
-| Type accuracy | **99.8%** |
 | Self-loops | **0%** |
-| Circuits valides | 36-42% |
-
-**Amélioration**: Le modèle reconnaît maintenant les **tanks LC**! C'est un premier succès sur un pattern qui n'était pas dans V1.
-
-### MAIS... Le Problème Persiste pour les Double Résonances!
-
-**Observation**: Même avec Dataset V3 (25% de double résonances), le modèle "lisse" souvent ces courbes.
-
-**Analyse plus poussée**: En regardant les courbes de double résonance du Dataset V3, on se rend compte qu'elles sont **trop subtiles**:
-- Les deux fréquences de résonance f1 et f2 sont souvent **proches** (ex: 1kHz et 3kHz)
-- Le Q (facteur de qualité) est **élevé** → pics très **étroits**
-- Visuellement, ça ressemble presque à une simple résonance avec du bruit!
-
-**Le modèle ne voit pas la différence** entre une double résonance subtile et un RLC simple avec un peu de bruit. Et comme un RLC simple a une loss acceptable... il choisit le simple.
-
----
-
-## 4.5 Phase 5: Dataset V4 — Résonances TRÈS Marquées (Mi-Janvier)
-
-### Le Raisonnement
-
-Si le modèle confond les double résonances avec des RLC simples, c'est parce que **les courbes se ressemblent trop**.
-
-Solution: Générer des double résonances **IMPOSSIBLES À CONFONDRE** avec un RLC simple.
-
-### Modifications du Générateur V4
-
-| Paramètre | Dataset V3 | Dataset V4 | Pourquoi? |
-|-----------|------------|------------|-----------|
-| Écart f1/f2 | Variable | **2+ décades minimum** | Ex: 100Hz et 10kHz (pas 1kHz et 3kHz) |
-| Q factor | Élevé (20-50) | **Modéré (5-15)** | Pics **larges** et visibles, pas des aiguilles |
-| % double résonances | 25% | **50%** | Forcer le modèle à vraiment apprendre ce pattern |
-
-**Objectif**: Que visuellement, une double résonance soit **IMPOSSIBLE** à confondre avec un RLC simple.
-
-### Model V6: Overfit CATASTROPHIQUE
-
-**Entraînement**: Model V5 re-entraîné sur Dataset V4, 100 epochs.
-
-**Résultat**: **ÉCHEC — Overfitting sévère**
-
-| Epoch | Val Loss | Type Accuracy |
-|-------|----------|---------------|
-| 1 | 0.255 | 100% |
-| 6 (meilleur) | **0.226** | 99.9% |
-| 15 | 4.294 | 85.9% |
-| 26 | **8.5** | **66%** |
-
-Le modèle a commencé à **mémoriser** le dataset au lieu d'apprendre des patterns généralisables. La train loss reste stable (~0.4) mais la val loss explose!
-
-### Pourquoi l'Overfitting?
-
-**Cause identifiée**: Le "tau annealing" (température du sampling) descend **trop vite**.
-
-```python
-# V6: Tau descend trop vite
-tau = max(0.5, 1.0 - 0.005 * epoch)  # Atteint 0.5 à epoch 100
-
-# Le modèle devient trop "confiant" trop tôt
-# → Il mémorise les exemples au lieu de généraliser
-```
-
-**Autre hypothèse**: Dataset V4 est plus "homogène" (50% du même type) donc plus facile à mémoriser.
-
-**Décision**: Revenir au Model V5 en production (il marche) et retravailler V7 avec:
-- Tau annealing plus lent (floor à 0.7 au lieu de 0.5)
-- Early stopping
-- Plus de régularisation
-
----
-
-## 4.6 Phase 6: Model V7 — Loss avec Dérivées (Cette semaine)
-
-### L'Idée Centrale
-
-**Problème non résolu**: Le modèle "lisse" les courbes complexes.
-
-**Observation**: La loss MSE classique compare **point par point**. Elle ne "voit" pas la **forme** de la courbe.
-
-```
-Courbe 1: ────/\────────    (un pic)
-Courbe 2: ────/\───/\───    (deux pics)
-
-Si le pic manquant est "petit", la MSE peut être faible!
-Le modèle ne voit pas qu'il manque un pic.
-```
-
-**Solution**: Ajouter les **dérivées** dans la loss pour capturer la forme.
-
-```python
-# Loss classique: Compare uniquement les valeurs
-loss = MSE(Z_pred, Z_target)
-
-# Loss V3: Compare aussi la FORME (pente et courbure)
-d1_pred = Z_pred[:, 1:] - Z_pred[:, :-1]   # 1ère dérivée = pente
-d1_target = Z_target[:, 1:] - Z_target[:, :-1]
-d2_pred = d1_pred[:, 1:] - d1_pred[:, :-1]  # 2ème dérivée = courbure
-d2_target = d1_target[:, 1:] - d1_target[:, :-1]
-
-loss = MSE(Z) + 0.5 * MSE(d1) + 0.3 * MSE(d2)
-```
-
-**Intuition**: Si le modèle génère un RLC simple pour une double résonance:
-- La courbe peut être "proche" en valeur → MSE(Z) faible
-- Mais les **dérivées seront très différentes** (pic manquant = pente différente) → MSE(d1), MSE(d2) élevés
-
-### Premier Test V7: Petit Dataset (15k)
-
-Pour tester rapidement, j'ai entraîné V7 sur un petit dataset de 15k samples.
-
-**Résultat de l'entraînement**:
-- Type accuracy: 100%
-- Val loss: 13.99
-- Temps: ~7 minutes (grâce aux optimisations GPU!)
-
-### Le Problème: CATASTROPHE en Production
-
-Quand j'ai déployé V7 sur l'API et testé avec l'interface web:
-
-- **90% des circuits générés sont vides ou invalides**
-- Pour une double résonance, le modèle sort **une seule résistance**
-- Les courbes prédites sont des **lignes droites**
-
-**Comparaison V5 vs V7 sur un test RLC**:
-```
-V5: 3 composants valides [R, L, C] avec nodes corrects
-V7: 1 composant avec node invalide (0, 7) → circuit vide
-```
-
-### Analyse du Problème V7
-
-**Cause identifiée**: Le dataset de 15k samples est **beaucoup trop petit**. Le modèle n'a pas vu assez d'exemples pour généraliser. Il a "appris" des patterns incorrects.
-
-**Décision actuelle**:
-1. **Revenir à V5 en production** (il marche)
-2. **Relancer V7 sur le dataset complet** (150k samples)
-3. Ajouter **early stopping** pour éviter l'overfitting
-
-**Statut**: En cours — à suivre.
-
----
-
-# 5. Best-of-N: La Stratégie d'Inférence
-
-## 5.1 Le Problème avec N=1
-
-Avec une seule génération (N=1), le modèle donne un circuit qui est "correct en moyenne" mais rarement optimal pour un cas particulier.
-
-**Résultats typiques N=1**:
-- Erreur magnitude: ~3.0
-- Erreur phase: ~60°
-
-## 5.2 L'Idée du Best-of-N
-
-**Principe simple**: Générer N circuits différents, garder le meilleur!
-
-```
-Pour chaque courbe Z(f) cible:
-  1. Générer N circuits candidats (avec températures variées)
-  2. Pour chaque candidat:
-     - Calculer Z(f) du circuit via MNA solver
-     - Mesurer erreur = ||Z_pred - Z_target||
-  3. Garder le circuit avec la plus petite erreur
-```
-
-### Pourquoi ça marche?
-
-Le modèle génère des circuits **diversifiés** grâce à:
-- L'échantillonnage stochastique (softmax avec température)
-- La variation de température (τ = 0.3 à 1.0)
-
-Parmi N candidats, au moins un sera proche de la cible!
-
-## 5.3 Est-ce que c'est de la "triche"?
-
-### Arguments CONTRE
-
-1. **Temps d'inférence × N**: On fait N fois plus de calculs
-2. **On utilise le solver MNA**: On a accès à la "vraie" fonction Z(f)
-3. **Le modèle ne s'améliore pas**: On ne fait que chercher parmi ses outputs
-
-### Arguments POUR (pourquoi c'est légitime)
-
-1. **C'est une technique standard**:
-   - **Beam search** en NLP (génère plusieurs phrases, garde la meilleure)
-   - **MCTS** en RL (explore plusieurs trajectoires)
-   - **Rejection sampling** en statistiques
-
-2. **Le modèle fait le travail dur**:
-   - Sans bon modèle, même N=1000 ne trouverait pas de bon circuit
-   - Le modèle génère des candidats **plausibles**, pas aléatoires
-
-3. **Le solver MNA est juste une vérification**:
-   - C'est comme vérifier qu'un code compile
-   - On pourrait le remplacer par un Forward Model appris
-
-### Conclusion: Ce n'est PAS de la triche
-
-Best-of-N est une **stratégie d'inférence légitime** qui exploite la diversité du modèle. C'est analogue à un humain qui dessine plusieurs circuits et garde le meilleur.
-
-## 5.4 Résultats Best-of-N
-
-| N | Erreur Magnitude | Erreur Phase | Amélioration vs N=1 |
-|---|------------------|--------------|---------------------|
-| 1 | 3.05 | 59.2° | baseline |
-| 10 | 0.71 | 17.5° | **+76.7%** |
-| 50 | 0.35 | 11.6° | **+88.5%** |
-| 100 | 0.31 | 13.6° | **+89.8%** |
-
-**Observation**: L'amélioration sature vers N=100. Au-delà, le gain est marginal.
-
----
-
-# 6. Optimisations GPU
-
-## 6.1 Le Problème: Entraînement BEAUCOUP Trop Lent
-
-Pendant le développement de V7, j'ai constaté que l'entraînement était **extrêmement lent**: **~1.7 secondes par batch**!
-
-Pour 100 epochs sur 150k samples avec batch_size=128, ça fait **~8 heures** d'entraînement. Inacceptable pour itérer rapidement.
-
-## 6.2 Profiling: Identifier le Goulot d'Étranglement
-
-J'ai profilé le code pour voir où part le temps:
-
-| Composant | Temps | % du total |
-|-----------|-------|------------|
-| Forward model | 97ms | 5.7% |
-| **Solver MNA** | **1700ms** | **100%** |
-| Loss | 193ms | 11.4% |
-
-**Le solveur MNA est le goulot d'étranglement.**
-
-## 6.3 Pourquoi le Solveur était Lent
-
-Le code original utilisait des **boucles Python** pour construire les matrices d'admittance:
-
-```python
-# AVANT: Triple boucle Python (TRÈS lent!)
-for b in range(batch_size):
-    for s in range(seq_len):
-        for f in range(num_freq):
-            Y[b, f, i, j] += admittance
-```
-
-Chaque boucle Python a un **overhead énorme** comparé aux opérations tensor natives.
-
-## 6.4 Solution: Vectorisation Complète (solver_gpu_v4.py)
-
-**Idée**: Remplacer TOUTES les boucles par des opérations tensorielles PyTorch.
-
-```python
-# APRÈS: Opérations vectorisées (TRÈS rapide!)
-omega = torch.tensor(2 * pi * frequencies)  # (F,)
-Y_L = -1.0 / (omega * L_values)  # (B, S, F) vectorisé en une ligne
-
-# Stamp avec scatter_add au lieu de boucles
-Y_flat.index_put_((indices,), values, accumulate=True)
-```
-
-**Résultat**: **Solver 350x plus rapide** (1700ms → 5ms)
-
-## 6.5 La Loss aussi était Lente
-
-La loss utilisait aussi des boucles pour calculer les pénalités de validité:
-
-```python
-# AVANT: Triple boucle
-for b in range(batch_size):
-    for s1 in range(seq_len):
-        for s2 in range(s1+1, seq_len):
-            overlap = compute_overlap(s1, s2)
-```
-
-**Solution**: Utiliser `einsum` pour calculer tous les overlaps en une seule opération:
-
-```python
-# APRÈS: Une seule opération einsum
-edge_flat = edge_probs.reshape(B, S, -1)
-overlap = torch.einsum('bsi,bti->bst', edge_flat, edge_flat)
-```
-
-**Résultat**: **Loss 120x plus rapide** (193ms → 1.6ms)
-
-## 6.6 Impact Final sur l'Entraînement
-
-| Configuration | Temps/Batch | 100 Epochs |
-|---------------|-------------|------------|
-| Original (boucles Python) | ~1.7s | ~8 heures |
-| **Optimisé (vectorisé)** | **~290ms** | **~1.5 heures** |
-
-**Speedup total: ~6x**
-
-Maintenant je peux itérer beaucoup plus vite sur les expériences!
-
----
-
-# 7. État Actuel et Résultats
-
-## 7.1 Modèle en Production: V5
-
-Le modèle V5 est actuellement déployé sur l'API. Voici ses performances:
-
-| Métrique | Valeur |
-|----------|--------|
-| Type accuracy | **99.8%** |
-| Self-loops | **0%** |
-| Circuits valides | 36-42% |
-| Erreur (RMSE) avec Best-of-50 | ~0.3 |
-
-## 7.2 Ce Qui Marche Bien
+| Validite brute | ~40% |
+| Apres reparation | ~65% |
+| RMSE best-of-50 | **0.35** |
+| Val loss | 0.256 |
+
+## 5.2 Ce qui marche bien
 
 | Type de circuit | Performance |
 |-----------------|-------------|
-| RLC série | Excellent |
+| RLC serie | Excellent |
 | RC, RL simples | Excellent |
-| Tank LC | Bon (grâce au Dataset V3) |
+| Tank LC | Bon (grace au dataset V3 equilibre) |
 | Notch filters | Correct |
 
-## 7.3 Ce Qui Ne Marche Pas Encore
+Le modele reproduit bien les courbes a resonance simple et les tanks LC.
 
-| Problème | Explication |
-|----------|-------------|
-| **Double résonances** | Le modèle génère souvent un RLC simple (lisse la 2ème résonance) |
-| **Circuits complexes (>5 comp.)** | Tendance à simplifier |
-| **Taux de validité** | 36-42% seulement (duplicates encore présents) |
+## 5.3 Ce qui ne marche pas encore
 
-## 7.4 Comparaison 50k vs 500k
+Le modele a tendance a "lisser" les courbes complexes. Quand on lui donne une courbe avec une double resonance, il genere souvent un circuit RLC simple qui approxime la courbe globale mais manque le deuxieme pic.
 
-Une observation surprenante: le modèle entraîné sur **50k samples** est souvent **meilleur** que celui sur 500k!
-
-| Sample Test | 50k Error | 500k Error | Gagnant |
-|-------------|-----------|------------|---------|
-| 0 | 0.721 | 0.382 | 500k |
-| 20 | **0.095** | 0.217 | **50k** |
-| 50 | **0.071** | 0.147 | **50k** |
-| 80 | **0.144** | 0.389 | **50k** |
-
-**Le 50k gagne 3/4 des tests!**
-
-**Hypothèse**: 27.7M paramètres ne suffisent pas pour 500k patterns. Un dataset plus petit permet une meilleure spécialisation.
-
-**Leçon**: **Plus de données ≠ toujours mieux.** Il faut adapter la capacité du modèle au dataset.
+Ce comportement s'explique par le fait qu'un circuit simple qui "approxime" une courbe complexe donne une loss acceptable. Le modele prend le chemin de moindre resistance.
 
 ---
 
-# 8. Conclusion et Perspectives
+# 6. Experimentations post-V5
 
-## 8.1 Résumé du Parcours
+Apres le V5, cinq tentatives supplementaires ont ete faites pour depasser ses performances :
 
-| Phase | Problème | Solution Tentée | Résultat |
-|-------|----------|-----------------|----------|
-| 1 | Approches end-to-end échouent | Passer au supervisé | ✓ Fonctionnel |
-| 2 | 91% circuits invalides | Constrained decoder | ✓ Self-loops 0% |
-| 3 | Circuits trop simples | Dataset V3 équilibré | ✓ Tanks LC reconnus |
-| 4 | Double résonances lissées | Dataset V4 marqué | ✗ Overfitting (V6) |
-| 5 | Entraînement trop lent | Vectorisation GPU | ✓ 350x plus rapide |
-| 6 | Loss ne voit pas la forme | Loss avec dérivées | ? V7 en test |
+| Version | Changement | Resultat |
+|---------|-----------|----------|
+| V8 | 50k circuits 100% doubles resonances | Overfitting epoch 15 |
+| V9c | 150k, resonances espacees | Pas mieux que V5 |
+| V10 | Encoder 6 canaux (+derivees 1ere/2eme) | Performances degradees |
+| V11 | Classifier + REINFORCE | Decoder detruit par REINFORCE |
+| V12 | Classifier sans REINFORCE | Trop de composants (biais dataset) |
 
-## 8.2 Leçons Apprises
+**Conclusion** : le V5 reste le meilleur modele. Le probleme des doubles resonances ne vient pas d'un manque d'experimentation mais des limites de l'architecture actuelle et de la qualite du dataset.
 
-### 1. Les contraintes architecturales > les pénalités dans la loss
+---
 
-Le masking **garantit** 0% de self-loops. Une pénalité ne fait que "décourager".
+# 7. Problemes rencontres
 
-### 2. La distribution du dataset est CRITIQUE
+## 7.1 Overfitting du modele V6
 
-Le modèle apprend **exactement** ce qu'on lui montre. Si 80% du dataset = RLC simple, le modèle prédit des RLC simples.
+**Probleme** : sur le dataset V4 (doubles resonances forcees), le modele diverge a epoch 15 avec une val_loss qui explose a 8.5.
 
-### 3. Le modèle prend le chemin de moindre résistance
+**Solution** : retour au V5 stable. Le V7 a ete redesigne avec un scheduler moins agressif, mais n'a pas depasse V5 non plus.
 
-Un circuit simple qui "approxime" une courbe complexe = loss acceptable. Il faut **forcer** le modèle à voir la différence.
+## 7.2 Lissage des courbes complexes
 
-### 4. Plus de données ≠ toujours mieux
+**Probleme** : le modele predit un RLC simple au lieu d'une double resonance.
 
-V6 a overfit sur Dataset V4. La **qualité et la distribution** comptent plus que la quantité.
+**Solution tentee** : dataset verifie (100% doubles confirmees), 5 experiences (V8-V12). Non resolu. C'est une limite de l'architecture actuelle.
 
-### 5. Profiler avant d'optimiser
+## 7.3 Circuits invalides (duplicates)
 
-Le goulot d'étranglement n'était pas où je pensais (le modèle) mais dans le solver MNA.
+**Probleme** : le masking resout les self-loops (0%), mais les edges dupliquees restent un probleme (validite brute ~40%).
 
-## 8.3 Prochaines Étapes
+**Solution partielle** : reparation automatique (validite ~65%). Des contraintes supplementaires dans le decoder pourraient encore ameliorer ce point.
 
-1. **Finir V7**: Entraîner sur dataset complet avec early stopping
-2. **Améliorer la validité**: Passer de 40% à 80%+ de circuits valides (résoudre les duplicates)
-3. **Tester sur données réelles**: Comparer avec des mesures de vrais circuits
+## 7.4 Dataset biaise
 
-## 8.4 Bilan Personnel
+**Probleme** : les generateurs de "double resonance" ne produisent en realite que <15% de vraies doubles resonances visibles.
 
-Ce projet m'a appris énormément sur:
-- La gestion d'infrastructure (serveur distant, API, déploiement)
-- Les subtilités de l'entraînement de modèles (overfitting, distribution des données)
-- L'importance du profiling et de l'optimisation
-- L'itération rapide face aux échecs — chaque échec a enseigné quelque chose
+**Constat** : meme avec un dataset 100% verifie, le modele plafonne, ce qui confirme que le probleme est aussi architectural.
 
-Le modèle actuel (V5) fonctionne bien pour les circuits simples à moyens. Le défi reste les circuits complexes — mais les bases sont solides pour continuer.
+## 7.5 Arret de 7 semaines
+
+**Probleme** : problemes personnels entre novembre et le 20 decembre, soit ~7 semaines sans avancement.
+
+**Solution** : reprise intense le 20 decembre, rattrapage en janvier avec un rythme soutenu.
+
+---
+
+# 8. Bilan et perspectives
+
+## 8.1 Livrables realises
+
+| Phase | Livrables |
+|-------|-----------|
+| Specification | Cahier des charges, representation des circuits |
+| Conception | Architecture modele, pipeline de donnees |
+| Realisation | Modele V5, backend API, frontend web |
+| Validation | Tests, deploiement sur serveur OVH |
+| Gestion de projet | SPER, risques, Gantt |
+| Ecole | Rapport, slides, demo |
+
+## 8.2 Competences acquises
+
+- **Deep Learning** : PyTorch, conception d'architectures, design de fonctions de loss
+- **Data Engineering** : generation synthetique, controle de la distribution des donnees
+- **Full-Stack** : API FastAPI + interface Next.js + deploiement serveur
+- **Gestion de projet** : demarche exploratoire, SPER, analyse de risques
+- **Resilience** : reprise apres une longue pause, iteration rapide face aux echecs
+
+## 8.3 Lecons apprises
+
+1. **Les contraintes architecturales sont plus efficaces que les penalites de loss** : le masking garantit 0% de self-loops, une penalite ne fait que decourager.
+
+2. **La distribution du dataset est critique** : le modele apprend exactement ce qu'on lui montre. Un dataset biaise produit un modele biaise.
+
+3. **Le modele prend le chemin de moindre resistance** : un circuit simple qui "approxime" une courbe complexe donne une loss acceptable.
+
+4. **Plus de donnees ne signifie pas toujours mieux** : la qualite et la distribution des donnees comptent plus que la quantite.
+
+5. **Profiler avant d'optimiser** : le goulot d'etranglement etait le solveur MNA (1700 ms), pas le modele (97 ms). La vectorisation a donne un speedup de 340x.
+
+6. **Chaque iteration corrige UN probleme precis** : les 12 versions du modele montrent l'importance d'une demarche systematique de diagnostic.
+
+## 8.4 Perspectives d'amelioration
+
+1. **Nouvelle architecture** : le Transformer V2 atteint ses limites. Explorer les GNN (Graph Neural Networks), les modeles de diffusion, ou un encoder plus expressif.
+
+2. **Validite des circuits** : ajouter des contraintes supplementaires dans le decoder pour eliminer les edges dupliquees.
+
+3. **Donnees reelles** : integrer des mesures reelles de circuits pour valider les performances en conditions non synthetiques.
 
 ---
 
 # Annexes
 
-## A. Commandes Serveur
-
-```bash
-# Connexion
-ssh ubuntu@57.128.57.31
-
-# Environnement
-cd ~/circuit_transformer && source venv/bin/activate
-
-# Générer un dataset
-python3 data/generator_v4.py --num-samples 150000 --output outputs/dataset_v4.pt
-
-# Entraîner un modèle
-python3 scripts/train_v7.py --data outputs/dataset_v3.pt --epochs 100
-
-# Redémarrer l'API
-cd ~/circuit_web_backend
-pkill -f uvicorn
-nohup uvicorn main:app --host 0.0.0.0 --port 8000 > server.log 2>&1 &
-```
-
-## B. Fichiers Clés
+## A. Structure du code
 
 ```
-/home/ubuntu/circuit_transformer/
-├── models/
-│   ├── encoder.py           # CNN pour encoder Z(f)
-│   ├── decoder_v2.py        # Transformer avec masking
-│   └── model_v2.py          # Modèle complet
-├── training/
-│   ├── loss_v2.py           # Loss avec pénalités validité
-│   ├── loss_v3_fast.py      # Loss vectorisée + dérivées
-│   └── solver_gpu_v4.py     # Solveur MNA vectorisé (350x speedup)
-├── data/
-│   ├── generator_v3.py      # Générateur équilibré
-│   └── generator_v4.py      # Générateur résonances marquées
-└── outputs/
-    ├── dataset_v3.pt        # 150k samples équilibrés
-    ├── model_v5_test.pt     # Modèle en production
-    └── training_v7/         # Checkpoints V7
+ml/                          # Code d'entrainement
+  config.py                  # Constantes et hyperparametres
+  models/model_v2.py         # Architecture du modele V5
+  data/generator_v4.py       # Generateur de circuits par templates
+  data/solver.py             # Solveur MNA (calcul d'impedance)
+  training/loss_v2.py        # Fonction de loss avec penalites
+  scripts/train_v7.py        # Script d'entrainement
+
+web/                         # Application web
+  backend/                   # API FastAPI (inference, solveur)
+  frontend/                  # Interface Next.js + React
+
+slideshow/                   # Presentation (Next.js + Framer Motion)
+
+livrables/                   # Fichiers remis
+  modeles/model_v5_best.pt   # Poids du meilleur modele (106 MB)
+  datasets/dataset_v3_150k.pt # Dataset equilibre (142 MB)
+  datasets/dataset_v4_150k.pt # Dataset doubles resonances (142 MB)
 ```
 
-## C. Constantes du Projet
+## B. Infrastructure
 
-```python
-# Configuration
-MAX_COMPONENTS = 10        # Composants par circuit
-MAX_NODES = 8              # Nœuds (0=GND, 1=IN, 2-7=internal)
-MAX_SEQ_LEN = 12           # START + 10 composants + END
+- **Entrainement** : serveur OVH Cloud GPU (NVIDIA Quadro RTX 5000, 16 GB VRAM, CUDA 12.8)
+- **Developpement local** : MacBook M3 (backend MPS)
+- **Deploiement** : backend sur OVH, frontend sur Vercel
 
-FREQ_MIN = 10              # Hz
-FREQ_MAX = 10e6            # 10 MHz
-NUM_FREQ = 100             # Points de fréquence
-
-# Architecture
-LATENT_DIM = 256           # Sortie encoder
-D_MODEL = 512              # Dimension Transformer
-N_HEAD = 8                 # Têtes d'attention
-N_LAYERS = 6               # Couches Transformer
-# Total: 27.7M paramètres
-```
-
-## D. Références
+## C. References
 
 1. Vaswani et al., "Attention Is All You Need" (2017) — Architecture Transformer
-2. Weininger, "SMILES notation" (1988) — Représentation séquentielle de molécules
-3. Bagal et al., "MolGPT: Molecular Generation using Transformers" (2021) — Inspiration pour génération de structures
-4. Jang et al., "Categorical Reparameterization with Gumbel-Softmax" (2017) — Échantillonnage différentiable
+2. Weininger, "SMILES notation" (1988) — Representation sequentielle de molecules (inspiration)
+3. Bagal et al., "MolGPT: Molecular Generation using Transformers" (2021) — Generation de structures par Transformer
 
 ---
 
-*Document généré le 20 janvier 2026*
-*Projet PRI — Synthèse de Circuits par Deep Learning*
+*Document mis a jour le 22 fevrier 2026*
+*Projet PRI — Synthese de circuits equivalents par IA — Polytech Tours*
