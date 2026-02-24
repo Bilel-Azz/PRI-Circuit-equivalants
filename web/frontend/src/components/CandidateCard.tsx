@@ -17,20 +17,14 @@ export default function CandidateCard({ candidate, rank, targetImpedance }: Cand
   const magErr = candidate.error.magnitude.toFixed(3);
   const phaseErr = (candidate.error.phase * 180 / Math.PI).toFixed(1);
 
-  // Quick component summary
-  const compSummary = candidate.components.map(c => `${c.type}(${c.formatted_value})`).join(' + ');
-
   return (
     <div className="border border-[hsl(var(--border))] rounded-lg overflow-hidden bg-white">
-      {/* Header — always visible, clickable */}
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center gap-4 px-4 py-3 hover:bg-zinc-50/80 transition-colors text-left"
       >
-        {/* Rank */}
         <span className="text-xs font-semibold text-zinc-400 w-6 text-center">#{rank}</span>
 
-        {/* Component chips */}
         <div className="flex-1 flex flex-wrap gap-1.5 min-w-0">
           {candidate.components.map((c, i) => (
             <span key={i} className={`chip-${c.type.toLowerCase()} text-[10px]`}>
@@ -39,7 +33,6 @@ export default function CandidateCard({ candidate, rank, targetImpedance }: Cand
           ))}
         </div>
 
-        {/* Error metrics */}
         <div className="flex items-center gap-4 flex-shrink-0">
           <div className="text-right">
             <span className="text-[10px] text-zinc-400 block">Mag</span>
@@ -51,7 +44,6 @@ export default function CandidateCard({ candidate, rank, targetImpedance }: Cand
           </div>
         </div>
 
-        {/* Expand arrow */}
         <svg
           className={`w-4 h-4 text-zinc-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor"
@@ -60,17 +52,14 @@ export default function CandidateCard({ candidate, rank, targetImpedance }: Cand
         </svg>
       </button>
 
-      {/* Expanded content */}
       {expanded && (
         <div className="border-t border-[hsl(var(--border))] p-4 space-y-4 bg-zinc-50/30">
-          {/* Charts */}
           <ImpedanceChart
             target={targetImpedance}
             predicted={candidate.impedance}
             compact
           />
 
-          {/* Circuit diagram */}
           <CircuitDisplay components={candidate.components} compact />
         </div>
       )}

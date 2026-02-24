@@ -8,26 +8,19 @@ from data.circuit import Circuit, Component, COMP_R, COMP_L, COMP_C
 
 
 def resonant_LC(freq, q_factor=10):
-    """Generate L, C for target resonance frequency."""
     omega = 2 * np.pi * freq
-    L = q_factor / omega  
+    L = q_factor / omega
     C = 1 / (omega * omega * L)
     return L, C
 
 
-# ============================================================
-# DOUBLE RESONANCES BIEN MARQUÉES
-# ============================================================
+# Double résonances bien marquées
 
 def gen_double_res_clear():
-    """Double résonance avec deux creux TRÈS visibles.
-    Fréquences espacées de ~2 décades, Q modéré pour pics larges.
-    """
-    R = 10 ** np.random.uniform(0.5, 1.5)  # 3-30 ohm
-    # Fréquences bien séparées
-    f1 = 10 ** np.random.uniform(2, 2.5)   # 100Hz - 300Hz
-    f2 = 10 ** np.random.uniform(4, 4.5)   # 10kHz - 30kHz
-    # Q modéré pour pics larges et visibles
+    """Fréquences espacées de ~2 décades, Q modéré pour pics larges."""
+    R = 10 ** np.random.uniform(0.5, 1.5)
+    f1 = 10 ** np.random.uniform(2, 2.5)     # 100Hz - 300Hz
+    f2 = 10 ** np.random.uniform(4, 4.5)     # 10kHz - 30kHz
     L1, C1 = resonant_LC(f1, q_factor=5)
     L2, C2 = resonant_LC(f2, q_factor=5)
     return Circuit([
@@ -40,12 +33,12 @@ def gen_double_res_clear():
 
 
 def gen_double_res_asymmetric():
-    """Double résonance asymétrique - un pic large, un étroit."""
+    """Un pic large (Q=3), un étroit (Q=15)."""
     R = 10 ** np.random.uniform(0.5, 1.5)
-    f1 = 10 ** np.random.uniform(1.8, 2.5)  # 60Hz - 300Hz
-    f2 = 10 ** np.random.uniform(4, 5)      # 10kHz - 100kHz
-    L1, C1 = resonant_LC(f1, q_factor=3)    # Large
-    L2, C2 = resonant_LC(f2, q_factor=15)   # Étroit
+    f1 = 10 ** np.random.uniform(1.8, 2.5)
+    f2 = 10 ** np.random.uniform(4, 5)
+    L1, C1 = resonant_LC(f1, q_factor=3)
+    L2, C2 = resonant_LC(f2, q_factor=15)
     return Circuit([
         Component(COMP_R, 1, 2, R),
         Component(COMP_L, 2, 3, L1),
@@ -58,8 +51,8 @@ def gen_double_res_asymmetric():
 def gen_double_tank_clear():
     """Deux tanks (anti-résonances) bien séparés."""
     R = 10 ** np.random.uniform(1, 2)
-    f1 = 10 ** np.random.uniform(2, 2.8)   # 100Hz - 600Hz
-    f2 = 10 ** np.random.uniform(3.8, 4.5) # 6kHz - 30kHz
+    f1 = 10 ** np.random.uniform(2, 2.8)
+    f2 = 10 ** np.random.uniform(3.8, 4.5)
     L1, C1 = resonant_LC(f1, q_factor=8)
     L2, C2 = resonant_LC(f2, q_factor=8)
     return Circuit([
@@ -74,24 +67,23 @@ def gen_double_tank_clear():
 def gen_resonance_plus_tank():
     """Un creux (série) + une bosse (tank) = forme complexe."""
     R = 10 ** np.random.uniform(0.5, 1.5)
-    f1 = 10 ** np.random.uniform(2, 3)     # 100Hz - 1kHz
-    f2 = 10 ** np.random.uniform(3.5, 4.5) # 3kHz - 30kHz
+    f1 = 10 ** np.random.uniform(2, 3)
+    f2 = 10 ** np.random.uniform(3.5, 4.5)
     L1, C1 = resonant_LC(f1, q_factor=5)
     L2, C2 = resonant_LC(f2, q_factor=10)
     return Circuit([
         Component(COMP_R, 1, 2, R),
         Component(COMP_L, 2, 3, L1),
-        Component(COMP_C, 3, 0, C1),       # Série -> creux
+        Component(COMP_C, 3, 0, C1),
         Component(COMP_L, 3, 4, L2),
-        Component(COMP_C, 3, 4, C2),       # Tank -> bosse
+        Component(COMP_C, 3, 4, C2),
         Component(COMP_R, 4, 0, R * 5),
     ], num_nodes=5)
 
 
 def gen_ladder_3_stages():
-    """Ladder 3 étages - forme très différente d un RLC simple."""
     R = 10 ** np.random.uniform(1, 2)
-    f = 10 ** np.random.uniform(2.5, 4)    # Fréquence centrale
+    f = 10 ** np.random.uniform(2.5, 4)
     L, C = resonant_LC(f, q_factor=3)
     return Circuit([
         Component(COMP_R, 1, 2, R),
@@ -104,12 +96,9 @@ def gen_ladder_3_stages():
     ], num_nodes=6)
 
 
-# ============================================================
-# CIRCUITS SIMPLES (gardés pour baseline)
-# ============================================================
+# Circuits simples (baseline)
 
 def gen_rlc_serie():
-    """RLC série simple."""
     R = 10 ** np.random.uniform(1, 3)
     f0 = 10 ** np.random.uniform(2, 5)
     L, C = resonant_LC(f0, q_factor=10)
@@ -121,7 +110,6 @@ def gen_rlc_serie():
 
 
 def gen_tank_simple():
-    """Tank LC parallèle."""
     R = 10 ** np.random.uniform(1, 2)
     f0 = 10 ** np.random.uniform(2, 5)
     L, C = resonant_LC(f0, q_factor=10)
@@ -133,7 +121,6 @@ def gen_tank_simple():
 
 
 def gen_notch():
-    """Notch filter."""
     R = 10 ** np.random.uniform(1, 2)
     f0 = 10 ** np.random.uniform(2, 5)
     L, C = resonant_LC(f0, q_factor=15)
@@ -145,23 +132,21 @@ def gen_notch():
     ], num_nodes=4)
 
 
-# ============================================================
-# TEMPLATES V4 - 50% double résonances marquées
-# ============================================================
+# Templates V4 - 50% double résonances marquées
 
 TEMPLATES_V4 = [
     # Simples (25%)
     (gen_rlc_serie, 0.10),
     (gen_tank_simple, 0.10),
     (gen_notch, 0.05),
-    
+
     # Double résonances MARQUÉES (50%)
     (gen_double_res_clear, 0.15),
     (gen_double_res_asymmetric, 0.10),
     (gen_double_tank_clear, 0.10),
     (gen_resonance_plus_tank, 0.10),
     (gen_ladder_3_stages, 0.05),
-    
+
     # Extra variation (25%)
     (gen_double_res_clear, 0.15),
     (gen_double_tank_clear, 0.10),
@@ -169,7 +154,6 @@ TEMPLATES_V4 = [
 
 
 def generate_circuit_v4():
-    """Generate a random circuit using V4 templates."""
     r = np.random.random()
     cumsum = 0
     for gen_fn, prob in TEMPLATES_V4:

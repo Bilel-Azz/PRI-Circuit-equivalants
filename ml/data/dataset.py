@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""
-Dataset generation and loading for Circuit Transformer.
-
-Generates random circuits with their impedance curves Z(f).
-Each sample contains:
-- impedance: (2, NUM_FREQ) - [log|Z|, phase]
-- sequence: (MAX_SEQ_LEN, 4) - [type, node_a, node_b, value]
-"""
+"""Dataset generation and loading for Circuit Transformer."""
 import os
 import argparse
 from typing import Dict, Optional, Tuple
@@ -18,10 +11,6 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from config import (
     NUM_FREQ, MAX_SEQ_LEN, MAX_COMPONENTS, MAX_NODES,
     MIN_COMPONENTS, RLC_RATIO, DATASET_SIZE, BATCH_SIZE
@@ -31,11 +20,10 @@ from data.solver import compute_impedance
 
 
 def generate_single_sample(args: Tuple) -> Optional[Dict]:
-    """Generate one circuit sample. Returns numpy arrays (not tensors) to avoid multiprocessing issues."""
+    """Generate one circuit sample. Returns numpy arrays to avoid multiprocessing issues."""
     idx, min_comp, max_comp, max_nodes, force_rlc = args
 
     try:
-        # Generate circuit
         circuit = generate_random_circuit(
             min_components=min_comp,
             max_components=max_comp,
@@ -46,22 +34,19 @@ def generate_single_sample(args: Tuple) -> Optional[Dict]:
         if len(circuit.components) == 0:
             return None
 
-        # Compute impedance
         impedance = compute_impedance(circuit)
 
         if not np.isfinite(impedance).all():
             return None
 
-        # Convert to sequence
         sequence = circuit_to_sequence(circuit, MAX_SEQ_LEN)
 
-        # Return numpy arrays (NOT tensors) to avoid multiprocessing file descriptor issues
         return {
             'impedance': impedance.astype(np.float32),
             'sequence': sequence.astype(np.float32)
         }
 
-    except Exception as e:
+    except Exception:
         return None
 
 
@@ -75,22 +60,6 @@ def generate_dataset(
     seed: int = 42,
     save_path: str = None
 ) -> Dict[str, torch.Tensor]:
-    """
-    Generate dataset of circuits with impedance curves.
-
-    Args:
-        num_samples: Number of samples
-        min_components: Min components per circuit
-        max_components: Max components per circuit (up to 10)
-        max_nodes: Max nodes per circuit
-        rlc_ratio: Fraction of RLC circuits
-        num_workers: Parallel workers
-        seed: Random seed
-        save_path: Path to save dataset
-
-    Returns:
-        Dict with 'impedances' and 'sequences' tensors
-    """
     np.random.seed(seed)
 
     if num_workers is None:
@@ -103,13 +72,11 @@ def generate_dataset(
     print(f"  Workers: {num_workers}")
     print()
 
-    # Prepare arguments
     args_list = []
     for i in range(num_samples):
         force_rlc = np.random.random() < rlc_ratio
         args_list.append((i, min_components, max_components, max_nodes, force_rlc))
 
-    # Generate in parallel
     start_time = time.time()
 
     if num_workers > 1:
@@ -122,7 +89,6 @@ def generate_dataset(
     else:
         results = [generate_single_sample(a) for a in tqdm(args_list)]
 
-    # Filter valid samples
     valid = [r for r in results if r is not None]
     num_valid = len(valid)
 
@@ -130,7 +96,6 @@ def generate_dataset(
     print(f"\nGenerated {num_valid:,} valid samples ({num_valid/num_samples*100:.1f}%)")
     print(f"Time: {elapsed:.1f}s ({num_valid/elapsed:.0f} samples/sec)")
 
-    # Convert numpy arrays to tensors and stack
     impedances = torch.tensor(np.stack([r['impedance'] for r in valid]), dtype=torch.float32)
     sequences = torch.tensor(np.stack([r['sequence'] for r in valid]), dtype=torch.float32)
 
@@ -139,19 +104,15 @@ def generate_dataset(
         'sequences': sequences
     }
 
-    # Statistics
-    print(f"\n=== Dataset Statistics ===")
-    print(f"Impedances: {impedances.shape}")
+    print(f"\nImpedances: {impedances.shape}")
     print(f"Sequences: {sequences.shape}")
 
-    # Component count distribution
     from config import TOKEN_PAD, TOKEN_START, TOKEN_END
     seq_types = sequences[:, :, 0]
     valid_mask = (seq_types != TOKEN_PAD) & (seq_types != TOKEN_START) & (seq_types != TOKEN_END)
     comp_counts = valid_mask.sum(dim=1)
     print(f"Components/circuit: min={comp_counts.min()}, max={comp_counts.max()}, mean={comp_counts.float().mean():.1f}")
 
-    # Type distribution
     from config import COMP_R, COMP_L, COMP_C
     all_types = seq_types[valid_mask]
     r_count = (all_types == COMP_R).sum().item()
@@ -160,11 +121,9 @@ def generate_dataset(
     total = r_count + l_count + c_count
     print(f"Type distribution: R={r_count/total*100:.1f}%, L={l_count/total*100:.1f}%, C={c_count/total*100:.1f}%")
 
-    # Impedance stats
     print(f"|Z| range: [{impedances[:, 0].min():.2f}, {impedances[:, 0].max():.2f}] log10(Ohm)")
     print(f"Phase range: [{impedances[:, 1].min():.2f}, {impedances[:, 1].max():.2f}] rad")
 
-    # Save
     if save_path:
         os.makedirs(os.path.dirname(save_path) or '.', exist_ok=True)
         torch.save(dataset, save_path)
@@ -175,8 +134,6 @@ def generate_dataset(
 
 
 class CircuitDataset(Dataset):
-    """PyTorch Dataset for circuit data."""
-
     def __init__(self, data_path: str = None, data_dict: Dict = None):
         if data_path:
             self.data = torch.load(data_path, weights_only=False)
@@ -204,11 +161,9 @@ def create_dataloaders(
     test_split: float = 0.1,
     num_workers: int = 4
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
-    """Create train/val/test dataloaders."""
     data = torch.load(data_path, weights_only=False)
     n_total = len(data['impedances'])
 
-    # Split indices
     n_test = int(n_total * test_split)
     n_val = int(n_total * val_split)
     n_train = n_total - n_val - n_test

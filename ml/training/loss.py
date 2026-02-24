@@ -1,19 +1,9 @@
-"""
-Loss function for Circuit Transformer.
-
-Combines:
-- CrossEntropy for type classification
-- CrossEntropy for node classification
-- MSE for value regression
-"""
+"""Loss function: CrossEntropy (type/node) + MSE (value)."""
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Dict, Tuple
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from config import (
     WEIGHT_TYPE, WEIGHT_NODE, WEIGHT_VALUE,
     TOKEN_PAD, TOKEN_START, TOKEN_END,
@@ -23,8 +13,6 @@ from config import (
 
 class CircuitLoss(nn.Module):
     """
-    Loss for sequential circuit prediction.
-
     Masks out PAD tokens and computes separate losses for:
     - Component type (6 classes)
     - Node A, Node B (8 classes each)
@@ -59,26 +47,12 @@ class CircuitLoss(nn.Module):
         output: Dict[str, torch.Tensor],
         batch: Dict[str, torch.Tensor]
     ) -> Tuple[torch.Tensor, Dict[str, float]]:
-        """
-        Compute loss.
-
-        Args:
-            output: Model output with logits
-            batch: Dict with 'sequence' target
-
-        Returns:
-            loss: Scalar tensor
-            metrics: Dict with metrics
-        """
         device = output['type_logits'].device
 
-        # Target sequence - SHIFT BY 1 for next-token prediction!
-        # Input:  [START, R, L, C, END, PAD]
-        # Target: [R, L, C, END, PAD, PAD] (shifted left by 1)
+        # Shift target left by 1 (next-token prediction)
         target_seq = batch['sequence'].to(device)
         batch_size, seq_len, _ = target_seq.shape
 
-        # Shift target left by 1 (next-token prediction)
         target_seq_shifted = torch.zeros_like(target_seq)
         target_seq_shifted[:, :-1, :] = target_seq[:, 1:, :]
         target_seq = target_seq_shifted
@@ -99,23 +73,20 @@ class CircuitLoss(nn.Module):
             node_b_logits = output['node_b_logits']
             pred_values = output['values'].squeeze(-1)
 
-        # Extract targets (now shifted)
         target_types = target_seq[:, :, 0].long()
         target_node_a = target_seq[:, :, 1].long()
         target_node_b = target_seq[:, :, 2].long()
         target_values = target_seq[:, :, 3]
 
-        # Masks
         valid_mask = (target_types != TOKEN_PAD).float()
         component_mask = ((target_types >= COMP_R) & (target_types <= COMP_C)).float()
 
-        # 1. Type loss
         type_loss = self.type_ce(
             type_logits.reshape(-1, NUM_TOKENS),
             target_types.reshape(-1)
         )
 
-        # 2. Node losses (only for components)
+        # Node losses only for component positions
         node_a_loss_raw = self.node_ce(
             node_a_logits.reshape(-1, MAX_NODES),
             target_node_a.reshape(-1)
@@ -130,18 +101,16 @@ class CircuitLoss(nn.Module):
 
         node_loss = (node_a_loss + node_b_loss) / 2
 
-        # 3. Value loss (only for components)
+        # Value loss only for component positions
         value_loss_raw = self.value_mse(pred_values, target_values)
         value_loss = (value_loss_raw * component_mask).sum() / (component_mask.sum() + 1e-8)
 
-        # Total loss
         total_loss = (
             self.type_weight * type_loss +
             self.node_weight * node_loss +
             self.value_weight * value_loss
         )
 
-        # Metrics
         with torch.no_grad():
             type_pred = type_logits.argmax(dim=-1)
             type_correct = ((type_pred == target_types) * valid_mask).sum()
@@ -167,35 +136,3 @@ class CircuitLoss(nn.Module):
         }
 
         return total_loss, metrics
-
-
-if __name__ == "__main__":
-    print("=== Testing Circuit Loss ===\n")
-
-    loss_fn = CircuitLoss()
-
-    batch_size = 4
-    seq_len = 12
-
-    # Fake output
-    output = {
-        'type_logits': torch.randn(batch_size, seq_len, NUM_TOKENS),
-        'node_a_logits': torch.randn(batch_size, seq_len, MAX_NODES),
-        'node_b_logits': torch.randn(batch_size, seq_len, MAX_NODES),
-        'values': torch.randn(batch_size, seq_len, 1)
-    }
-
-    # Fake target
-    batch = {
-        'sequence': torch.zeros(batch_size, seq_len, 4)
-    }
-    batch['sequence'][:, 0, 0] = TOKEN_START
-    batch['sequence'][:, 1, :] = torch.tensor([COMP_R, 0, 1, 0.0])
-    batch['sequence'][:, 2, :] = torch.tensor([COMP_L, 1, 2, 0.0])
-    batch['sequence'][:, 3, 0] = TOKEN_END
-
-    loss, metrics = loss_fn(output, batch)
-    print(f"Loss: {loss.item():.4f}")
-    print("Metrics:")
-    for k, v in metrics.items():
-        print(f"  {k}: {v:.4f}")

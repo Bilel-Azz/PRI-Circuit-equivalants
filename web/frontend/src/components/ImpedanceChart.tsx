@@ -11,12 +11,25 @@ interface ImpedanceChartProps {
   compact?: boolean;
 }
 
-const CustomTooltip = ({ active, payload, label, unit }: any) => {
+interface TooltipEntry {
+  color: string;
+  name: string;
+  value: number;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  label?: number;
+  unit: string;
+}
+
+const CustomTooltip = ({ active, payload, label, unit }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-white border border-gray-200 px-3 py-2 rounded-lg shadow-lg text-xs">
         <p className="font-semibold text-gray-900 mb-1">{Number(label).toFixed(1)} Hz</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry: TooltipEntry, index: number) => (
           <div key={index} className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
             <span className="text-gray-500">{entry.name}:</span>

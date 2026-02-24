@@ -1,9 +1,3 @@
-"""
-Model loading and inference utilities.
-
-This module handles model loading and circuit generation.
-Modify config.py to change model paths and parameters.
-"""
 import sys
 from pathlib import Path
 import numpy as np
@@ -18,8 +12,8 @@ _spec = importlib.util.spec_from_file_location(
 local_config = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(local_config)
 
-# Now add circuit_transformer to path for model imports
-_ct_path = str(Path("/Volumes/WD_BLACK2TB/PRI_TT/circuit_transformer"))
+# Add ml/ directory (relative to repo root) to path for model imports
+_ct_path = str(Path(__file__).parent.parent.parent / "ml")
 if _ct_path not in sys.path:
     sys.path.insert(0, _ct_path)
 
@@ -29,7 +23,6 @@ DERIVATIVE_WEIGHT = 0.3
 
 
 def count_resonances(magnitude):
-    """Count peaks and valleys in magnitude curve."""
     mag = np.array(magnitude)
     peaks, _ = find_peaks(mag, prominence=PEAK_PROMINENCE)
     valleys, _ = find_peaks(-mag, prominence=PEAK_PROMINENCE)
@@ -41,12 +34,10 @@ def compute_shape_score(target_mag, candidate_mag, rmse):
     target_mag = np.array(target_mag)
     candidate_mag = np.array(candidate_mag)
 
-    # Derivative matching (captures slope changes = resonances)
     d1_target = np.diff(target_mag)
     d1_candidate = np.diff(candidate_mag)
     deriv_err = np.mean(np.abs(d1_target - d1_candidate))
 
-    # Peak/valley count mismatch
     t_peaks, t_valleys = count_resonances(target_mag)
     c_peaks, c_valleys = count_resonances(candidate_mag)
     peak_penalty = (abs(t_peaks - c_peaks) + abs(t_valleys - c_valleys)) * PEAK_MISMATCH_PENALTY
@@ -75,13 +66,6 @@ class CircuitModel:
     """Wrapper for circuit transformer model."""
 
     def __init__(self, checkpoint_path: str = None, device: str = None):
-        """
-        Initialize model.
-
-        Args:
-            checkpoint_path: Path to model checkpoint (uses config default if None)
-            device: Device to use ('cuda', 'cpu', or None for auto)
-        """
         self.checkpoint_path = checkpoint_path or str(MODEL_CHECKPOINT)
 
         if device is None:
@@ -102,12 +86,10 @@ class CircuitModel:
         print(f"Loading model from {self.checkpoint_path}")
         print(f"Device: {self.device}")
 
-        # Load checkpoint to detect version
         checkpoint = torch.load(self.checkpoint_path, map_location=self.device, weights_only=False)
         version = checkpoint.get('model_version', 'V2')
         print(f"Model version: {version}")
 
-        # Create correct model class
         kwargs = dict(
             latent_dim=MODEL_CONFIG["latent_dim"],
             d_model=MODEL_CONFIG["d_model"],
@@ -136,7 +118,7 @@ class CircuitModel:
 
         for row in seq:
             comp_type = int(row[0])
-            if comp_type not in [1, 2, 3]:  # Skip PAD, START, END
+            if comp_type not in [1, 2, 3]:
                 continue
 
             node_a = int(row[1])
@@ -169,7 +151,7 @@ class CircuitModel:
         max_node = max(max(c['node_a'], c['node_b']) for c in components)
         circuit = Circuit(comps, num_nodes=max_node + 1)
 
-        z = _solver_compute(circuit)  # Returns (2, NUM_FREQ): [log_mag, phase]
+        z = _solver_compute(circuit)
 
         if z is None:
             return None
@@ -190,24 +172,13 @@ class CircuitModel:
 
     def generate(self, impedance: np.ndarray, tau: float = None,
                  num_candidates: int = None) -> dict:
-        """
-        Generate circuit from impedance curve using Best-of-N.
-
-        Args:
-            impedance: Array of shape (2, NUM_FREQ) with [log_magnitude, phase]
-            tau: Temperature for generation
-            num_candidates: Number of candidates for Best-of-N
-
-        Returns:
-            Dictionary with best circuit and all candidates
-        """
+        """Generate circuit from impedance curve using Best-of-N sampling."""
         if self.model is None:
             raise RuntimeError("Model not loaded. Call load() first.")
 
         tau = tau or DEFAULT_TAU
         num_candidates = num_candidates or DEFAULT_NUM_CANDIDATES
 
-        # Convert to tensor
         z_tensor = torch.tensor(impedance, dtype=torch.float32).to(self.device)
         if z_tensor.dim() == 2:
             z_tensor = z_tensor.unsqueeze(0)
@@ -216,7 +187,6 @@ class CircuitModel:
         if getattr(self, '_uses_6ch', False):
             z_tensor = compute_derivative_features(z_tensor)
 
-        # Generate N candidates
         candidates = []
 
         with torch.no_grad():
@@ -226,11 +196,9 @@ class CircuitModel:
                 components = self.sequence_to_components(seq_np)
 
                 if components:
-                    # Compute impedance for this candidate
                     z_pred = self.compute_impedance_for_components(components)
 
                     if z_pred:
-                        # Compute error
                         mag_error = np.mean(np.abs(
                             np.array(z_pred['magnitude']) - impedance[0]
                         ))
@@ -239,7 +207,6 @@ class CircuitModel:
                         ))
                         total_error = mag_error + 0.1 * phase_error
 
-                        # Shape-aware scoring (penalizes missing peaks/wrong slopes)
                         shape_score = compute_shape_score(
                             impedance[0], z_pred['magnitude'], total_error
                         )
@@ -304,12 +271,10 @@ class CircuitModel:
         return str(value)
 
 
-# Global model instance
 _model = None
 
 
 def get_model() -> CircuitModel:
-    """Get or create global model instance."""
     global _model
     if _model is None:
         _model = CircuitModel()

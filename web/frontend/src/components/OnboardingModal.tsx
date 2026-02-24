@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface OnboardingModalProps {
   onClose: () => void;
@@ -155,15 +155,12 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* Modal */}
       <div className="relative bg-background rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden border border-border">
-        {/* Progress bar */}
         <div className="h-1 bg-secondary">
           <div
             className="h-full bg-primary transition-all duration-300"
@@ -171,9 +168,7 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
           />
         </div>
 
-        {/* Content */}
         <div className="p-8">
-          {/* Header */}
           <div className="flex items-center gap-4 mb-6">
             <div className="text-4xl">{currentStep.icon}</div>
             <div>
@@ -182,13 +177,11 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
             </div>
           </div>
 
-          {/* Body */}
           <div className="text-foreground min-h-[280px]">
             {currentStep.content}
           </div>
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t border-border bg-secondary/30">
           <button
             onClick={onClose}
@@ -221,7 +214,6 @@ export default function OnboardingModal({ onClose }: OnboardingModalProps) {
           </div>
         </div>
 
-        {/* Step indicators */}
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5">
           {steps.map((_, i) => (
             <button

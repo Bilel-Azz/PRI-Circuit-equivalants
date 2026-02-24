@@ -1,13 +1,6 @@
-/**
- * API Client for Circuit Synthesis Backend
- *
- * MODIFY API_BASE_URL if your backend is hosted elsewhere
- */
-
-// Use proxy route to avoid CORS issues (Vercel HTTPS -> OVH HTTP)
 const API_BASE_URL = typeof window !== 'undefined'
-  ? '/api/proxy'  // Client-side: use proxy
-  : (process.env.BACKEND_URL || 'http://79.137.26.53:8000');  // Server-side: direct to OVH
+  ? '/api/proxy'
+  : (process.env.BACKEND_URL || 'http://localhost:8000');
 
 export interface Component {
   type: string;
@@ -68,19 +61,6 @@ export interface HealthCheck {
   current_model_name?: string;
 }
 
-export interface ModelInfo {
-  id: string;
-  name: string;
-  description: string;
-  available: boolean;
-  is_current: boolean;
-}
-
-export interface ModelsResponse {
-  models: ModelInfo[];
-  current: string;
-}
-
 export async function checkHealth(): Promise<HealthCheck> {
   const res = await fetch(`${API_BASE_URL}/`);
   if (!res.ok) throw new Error('Backend not available');
@@ -112,25 +92,6 @@ export async function generateCircuit(
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.detail || 'Generation failed');
-  }
-  return res.json();
-}
-
-export async function getModels(): Promise<ModelsResponse> {
-  const res = await fetch(`${API_BASE_URL}/models`);
-  if (!res.ok) throw new Error('Failed to get models');
-  return res.json();
-}
-
-export async function switchModel(model_id: string): Promise<{ success: boolean; model_id: string; name: string }> {
-  const res = await fetch(`${API_BASE_URL}/models/switch`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model_id }),
-  });
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.detail || 'Failed to switch model');
   }
   return res.json();
 }

@@ -1,9 +1,4 @@
 #!/usr/bin/env python3
-"""
-Demo of the Circuit Visualizer.
-
-Creates sample circuits and visualizes them.
-"""
 from circuit_drawer import (
     Component,
     draw_circuit_graph,
@@ -14,10 +9,7 @@ import numpy as np
 
 
 def demo_basic():
-    """Demo with manually created components."""
     print("=== Basic Demo ===\n")
-
-    # Simple RLC series circuit
     print("1. Simple RLC Series Circuit:")
     components = [
         Component(1, 0, 1, 100),       # R = 100Ω
@@ -27,7 +19,6 @@ def demo_basic():
     draw_circuit_schematic(components, title="Simple RLC Series",
                            save_path="demo_rlc_series.png")
 
-    # Parallel RC circuit
     print("\n2. Parallel RC Circuit:")
     components = [
         Component(1, 0, 1, 1000),      # R = 1kΩ
@@ -36,7 +27,6 @@ def demo_basic():
     draw_circuit_graph(components, title="Parallel RC",
                        save_path="demo_rc_parallel.png")
 
-    # Complex circuit
     print("\n3. Complex RLC Network:")
     components = [
         Component(1, 0, 1, 470),       # R1 = 470Ω
@@ -51,10 +41,8 @@ def demo_basic():
 
 
 def demo_from_sequence():
-    """Demo converting model sequence to circuit."""
     print("\n=== Sequence Conversion Demo ===\n")
 
-    # Simulated model output
     # Format: [type, node_a, node_b, normalized_value]
     # Types: 0=PAD, 1=R, 2=L, 3=C, 4=START, 5=END
     sequence = np.array([
@@ -79,20 +67,14 @@ def demo_from_sequence():
 
 
 def demo_various_values():
-    """Demo showing various component values."""
     print("\n=== Various Component Values Demo ===\n")
 
     components = [
-        # Resistors
         Component(1, 0, 1, 10),        # 10Ω
         Component(1, 1, 2, 4700),      # 4.7kΩ
         Component(1, 2, 3, 1e6),       # 1MΩ
-
-        # Inductors
         Component(2, 3, 4, 100e-9),    # 100nH
         Component(2, 4, 5, 10e-3),     # 10mH
-
-        # Capacitors
         Component(3, 5, 0, 1e-12),     # 1pF
         Component(3, 0, 1, 100e-6),    # 100µF
     ]

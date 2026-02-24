@@ -39,7 +39,6 @@ export default function Home() {
     }
   };
 
-  // SPICE export helper
   const exportSPICE = () => {
     if (!result?.best) return;
     const fmt = (val: number, type: string) => {
@@ -59,7 +58,6 @@ export default function Home() {
 
   return (
     <main className="min-h-screen">
-      {/* Top bar */}
       <header className="border-b border-[hsl(var(--border))] bg-white/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="max-w-[1400px] mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -91,9 +89,7 @@ export default function Home() {
       <div className="max-w-[1400px] mx-auto px-6 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-          {/* ── Left Panel ── */}
           <aside className="lg:col-span-3 space-y-4">
-            {/* Input */}
             <div className="panel p-5">
               <h2 className="text-sm font-medium mb-4 flex items-center gap-2 text-zinc-700">
                 <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -104,7 +100,6 @@ export default function Home() {
               <ImpedanceInput onSubmit={handleGenerate} loading={loading} />
             </div>
 
-            {/* Parameters */}
             <div className="panel p-5">
               <h2 className="text-sm font-medium mb-4 flex items-center gap-2 text-zinc-700">
                 <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -133,10 +128,7 @@ export default function Home() {
             </div>
           </aside>
 
-          {/* ── Main Content ── */}
           <div className="lg:col-span-9 space-y-5">
-
-            {/* Error */}
             {error && (
               <div className="panel border-red-200 bg-red-50 p-4 flex items-start gap-3">
                 <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -149,7 +141,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Loading */}
             {loading && (
               <div className="panel p-16 flex flex-col items-center justify-center">
                 <div className="relative w-12 h-12 mb-6">
@@ -161,7 +152,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Empty state */}
             {!loading && !result && !error && (
               <div className="panel p-16 flex flex-col items-center justify-center text-center">
                 <div className="w-16 h-16 rounded-2xl bg-zinc-50 border border-zinc-100 flex items-center justify-center mb-4">
@@ -176,11 +166,8 @@ export default function Home() {
               </div>
             )}
 
-            {/* ── Results ── */}
             {result && result.success && result.best && (
               <div className="space-y-5">
-
-                {/* Stats row */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="panel p-4 text-center">
                     <p className="text-2xl font-bold font-mono text-zinc-900">{result.best.error.magnitude.toFixed(3)}</p>
@@ -196,7 +183,6 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Generation stats */}
                 {result.stats && (
                   <div className="flex items-center gap-3 text-xs text-zinc-500 px-1">
                     <span className="text-emerald-600 font-medium">{result.stats.valid} valid</span>
@@ -213,7 +199,6 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Impedance comparison */}
                 <div className="panel p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-medium text-zinc-700">Impedance Response</h3>
@@ -221,7 +206,6 @@ export default function Home() {
                   <ImpedanceChart target={targetImpedance || undefined} predicted={result.best.impedance} />
                 </div>
 
-                {/* Circuit diagram */}
                 <div className="panel p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-sm font-medium text-zinc-700">Circuit Topology</h3>
@@ -239,7 +223,6 @@ export default function Home() {
                   <CircuitDisplay components={result.best.components} />
                 </div>
 
-                {/* ── Alternative Candidates ── */}
                 {result.candidates.length > 1 && (
                   <div className="panel p-5">
                     <h3 className="text-sm font-medium text-zinc-700 mb-3">

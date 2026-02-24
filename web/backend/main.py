@@ -22,17 +22,12 @@ FREQ_MAX = _cfg.FREQ_MAX
 
 from model_utils import get_model
 
-# =============================================================================
-# FastAPI App
-# =============================================================================
-
 app = FastAPI(
     title="Circuit Synthesis API",
     description="Generate RLC circuits from impedance curves using AI",
     version="1.0.0",
 )
 
-# CORS for frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -42,20 +37,14 @@ app.add_middleware(
 )
 
 
-# =============================================================================
-# Request/Response Models
-# =============================================================================
-
 class GenerateRequest(BaseModel):
-    """Request to generate circuit from impedance."""
-    magnitude: List[float]  # log10(|Z|) for each frequency
-    phase: List[float]      # Phase in radians
+    magnitude: List[float]
+    phase: List[float]
     tau: Optional[float] = 0.5
     num_candidates: Optional[int] = 10
 
 
 class ComponentResponse(BaseModel):
-    """A single circuit component."""
     type: str
     type_id: int
     node_a: int
@@ -65,28 +54,24 @@ class ComponentResponse(BaseModel):
 
 
 class ImpedanceResponse(BaseModel):
-    """Impedance curve response."""
     magnitude: List[float]
     phase: List[float]
     frequencies: List[float]
 
 
 class ErrorResponse(BaseModel):
-    """Error metrics."""
     magnitude: float
     phase: float
     total: float
 
 
 class CandidateResponse(BaseModel):
-    """A circuit candidate."""
     components: List[ComponentResponse]
     impedance: ImpedanceResponse
     error: ErrorResponse
 
 
 class GenerateResponse(BaseModel):
-    """Response from circuit generation."""
     success: bool
     message: Optional[str] = None
     best: Optional[CandidateResponse] = None
@@ -95,27 +80,20 @@ class GenerateResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    """Health check response."""
     status: str
     model_loaded: bool
     device: str
 
 
 class ConfigResponse(BaseModel):
-    """Current configuration."""
     num_freq: int
     freq_min: float
     freq_max: float
     frequencies: List[float]
 
 
-# =============================================================================
-# Endpoints
-# =============================================================================
-
 @app.get("/", response_model=HealthResponse)
 async def root():
-    """Health check endpoint."""
     model = get_model()
     return HealthResponse(
         status="ok",
@@ -126,7 +104,6 @@ async def root():
 
 @app.get("/config", response_model=ConfigResponse)
 async def get_config():
-    """Get current configuration (frequencies, etc.)."""
     freqs = np.logspace(np.log10(FREQ_MIN), np.log10(FREQ_MAX), NUM_FREQ)
     return ConfigResponse(
         num_freq=NUM_FREQ,
@@ -147,7 +124,6 @@ async def generate_circuit(request: GenerateRequest):
 
     Returns the best matching circuit and all candidates.
     """
-    # Validate input
     if len(request.magnitude) != NUM_FREQ:
         raise HTTPException(
             status_code=400,
@@ -159,10 +135,8 @@ async def generate_circuit(request: GenerateRequest):
             detail=f"phase must have {NUM_FREQ} points, got {len(request.phase)}"
         )
 
-    # Create impedance array
     impedance = np.array([request.magnitude, request.phase])
 
-    # Get model and generate
     model = get_model()
     result = model.generate(
         impedance,
@@ -176,7 +150,6 @@ async def generate_circuit(request: GenerateRequest):
             message=result.get('message', 'Generation failed'),
         )
 
-    # Format response
     def format_candidate(cand):
         return CandidateResponse(
             components=[
@@ -204,14 +177,9 @@ async def generate_circuit(request: GenerateRequest):
 
 @app.post("/compute-impedance")
 async def compute_impedance_endpoint(components: List[dict]):
-    """
-    Compute impedance for given components.
-
-    Useful for testing or computing Z(f) for manually specified circuits.
-    """
+    """Compute impedance for given components (for testing or manual circuits)."""
     model = get_model()
 
-    # Convert to expected format
     formatted_components = []
     for c in components:
         formatted_components.append({
@@ -230,13 +198,8 @@ async def compute_impedance_endpoint(components: List[dict]):
     return ImpedanceResponse(**z)
 
 
-# =============================================================================
-# Startup
-# =============================================================================
-
 @app.on_event("startup")
 async def startup_event():
-    """Load model on startup."""
     print("Loading model...")
     get_model()
     print("Model ready!")

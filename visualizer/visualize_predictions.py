@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 """
-Visualize Circuit Predictions from Model.
-
-Loads a trained model, generates circuits from Z(f) curves,
-and displays them graphically.
-
 Usage:
     python visualize_predictions.py \
         --checkpoint ../circuit_transformer/outputs/run_50k/checkpoints/best.pt \
@@ -24,11 +19,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "circuit_transformer"))
 
 from config import LATENT_DIM, D_MODEL, N_HEAD, N_LAYERS, NUM_FREQ, FREQ_MIN, FREQ_MAX
 from models.model import CircuitTransformer
-from circuit_drawer import Component, draw_circuit_graph, draw_circuit_schematic
+from circuit_drawer import Component, draw_circuit_schematic
 
 
 def load_model(checkpoint_path: str, device: torch.device):
-    """Load trained model."""
     model = CircuitTransformer(
         latent_dim=LATENT_DIM,
         d_model=D_MODEL,
@@ -45,7 +39,7 @@ def load_model(checkpoint_path: str, device: torch.device):
 
 
 def sequence_to_components(seq: np.ndarray) -> list:
-    """Convert model output sequence to Component list."""
+    # log10 centers for denormalization: R~1kΩ, L~100µH, C~10nF
     VALUE_CENTER = {1: 3.0, 2: -4.0, 3: -8.0}
     components = []
 
@@ -67,12 +61,10 @@ def sequence_to_components(seq: np.ndarray) -> list:
 
 def plot_impedance(z_target: np.ndarray, z_pred: np.ndarray = None,
                    title: str = "Impedance", save_path: str = None):
-    """Plot impedance curve."""
     freqs = np.logspace(np.log10(FREQ_MIN), np.log10(FREQ_MAX), NUM_FREQ)
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
 
-    # Magnitude
     ax = axes[0]
     ax.semilogx(freqs, z_target[0], 'b-', linewidth=2, label='Target')
     if z_pred is not None:
@@ -83,7 +75,6 @@ def plot_impedance(z_target: np.ndarray, z_pred: np.ndarray = None,
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    # Phase
     ax = axes[1]
     ax.semilogx(freqs, z_target[1] * 180 / np.pi, 'b-', linewidth=2, label='Target')
     if z_pred is not None:
@@ -99,7 +90,6 @@ def plot_impedance(z_target: np.ndarray, z_pred: np.ndarray = None,
 
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
-        print(f"Saved impedance plot to {save_path}")
 
     plt.show()
     return fig
@@ -107,18 +97,14 @@ def plot_impedance(z_target: np.ndarray, z_pred: np.ndarray = None,
 
 def visualize_sample(model, impedance: torch.Tensor, target_seq: np.ndarray,
                      idx: int, output_dir: str, device: torch.device):
-    """Visualize a single sample: impedance + circuits."""
-
     print(f"\n{'='*60}")
     print(f"Sample {idx}")
     print(f"{'='*60}")
 
-    # Generate prediction
     with torch.no_grad():
         pred_seq = model.generate(impedance.unsqueeze(0).to(device), tau=0.5)
     pred_seq = pred_seq[0].cpu().numpy()
 
-    # Convert to components
     target_components = sequence_to_components(target_seq)
     pred_components = sequence_to_components(pred_seq)
 
@@ -130,23 +116,18 @@ def visualize_sample(model, impedance: torch.Tensor, target_seq: np.ndarray,
     for c in pred_components:
         print(f"  {c.label} (nodes {c.node_a}-{c.node_b})")
 
-    # Plot impedance
     z_target = impedance.numpy()
     plot_impedance(z_target, title=f"Sample {idx} - Target Impedance",
                    save_path=f"{output_dir}/sample_{idx}_impedance.png")
 
-    # Draw target circuit
     if target_components:
-        print("\nDrawing target circuit...")
         draw_circuit_schematic(
             target_components,
             title=f"Sample {idx} - Target Circuit",
             save_path=f"{output_dir}/sample_{idx}_target.png"
         )
 
-    # Draw predicted circuit
     if pred_components:
-        print("\nDrawing predicted circuit...")
         draw_circuit_schematic(
             pred_components,
             title=f"Sample {idx} - Predicted Circuit",
@@ -170,18 +151,13 @@ def main():
                         help='Starting index in test set')
 
     args = parser.parse_args()
-
-    # Create output directory
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
 
-    # Device
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: {device}")
 
-    # Load model
     model = load_model(args.checkpoint, device)
 
-    # Load data
     print(f"\nLoading data from {args.data}")
     data = torch.load(args.data)
     n_total = len(data['impedances'])
@@ -189,13 +165,11 @@ def main():
 
     print(f"Dataset: {n_total} samples, test set starts at {test_start}")
 
-    # Select samples
     if args.start_idx is not None:
         start_idx = args.start_idx
     else:
         start_idx = test_start
 
-    # Visualize samples
     for i in range(args.num_samples):
         idx = start_idx + i
         if idx >= n_total:

@@ -165,7 +165,6 @@ export default function ImpedanceInput({ onSubmit, loading }: ImpedanceInputProp
 
   return (
     <div className="space-y-4">
-      {/* Mode tabs */}
       <div className="grid grid-cols-2 p-0.5 bg-zinc-100 rounded-lg">
         {(['sample', 'manual'] as const).map(mode => (
           <button key={mode} onClick={() => setInputMode(mode)}
@@ -177,7 +176,6 @@ export default function ImpedanceInput({ onSubmit, loading }: ImpedanceInputProp
         ))}
       </div>
 
-      {/* Samples */}
       {inputMode === 'sample' && (
         <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-1">
           {SAMPLE_CURVES.map((sample, idx) => (
@@ -194,7 +192,6 @@ export default function ImpedanceInput({ onSubmit, loading }: ImpedanceInputProp
         </div>
       )}
 
-      {/* Manual JSON */}
       {inputMode === 'manual' && (
         <div className="space-y-2">
           <textarea value={manualInput} onChange={(e) => setManualInput(e.target.value)}
@@ -207,7 +204,6 @@ export default function ImpedanceInput({ onSubmit, loading }: ImpedanceInputProp
         </div>
       )}
 
-      {/* Data status */}
       {magnitude.length > 0 && (
         <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex justify-between items-center">
           <div>
@@ -218,7 +214,6 @@ export default function ImpedanceInput({ onSubmit, loading }: ImpedanceInputProp
         </div>
       )}
 
-      {/* Generate */}
       <button onClick={handleGenerate} disabled={loading || magnitude.length === 0}
         className={`w-full py-3 rounded-lg font-medium text-sm transition-all ${
           loading || magnitude.length === 0
